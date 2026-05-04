@@ -95,6 +95,15 @@ describe('setupTool', () => {
     expect(confirmMock).not.toHaveBeenCalled()
   })
 
+  it('uses the command label for the successful check message when provided', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    const {setupTool} = await import('../setup-tool.js')
+
+    await setupTool({...options, commandLabel: 'example cli'})
+
+    expect(spinnerStopMock).toHaveBeenCalledWith('example cli 확인 완료')
+  })
+
   it('skips when the command is missing and the user skips installation', async () => {
     commandExistsMock.mockResolvedValue(false)
     selectMock.mockResolvedValue('skip')

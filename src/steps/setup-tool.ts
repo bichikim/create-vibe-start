@@ -13,6 +13,7 @@ type PlatformCommand = {
 type SetupToolOptions = {
   name: string
   command: string
+  commandLabel?: string
   versionArgs: string[]
   authCheckArgs: string[]
   loginArgs: string[]
@@ -32,7 +33,8 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
   const check = spinner()
   check.start(`${options.command} 확인 중...`)
   let exists = await commandExists(options.command)
-  check.stop(exists ? `${options.command} 확인 완료` : `${options.command}를 찾을 수 없음`)
+  const commandLabel = options.commandLabel ?? options.command
+  check.stop(exists ? `${commandLabel} 확인 완료` : `${options.command}를 찾을 수 없음`)
 
   if (!exists) {
     const installed = await offerInstall(options)
