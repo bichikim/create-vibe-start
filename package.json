@@ -11,7 +11,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "tsc",
+    "build": "vite build",
     "format": "oxfmt",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -38,6 +38,8 @@
     "oxlint-tsgolint": "^0.22.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
+    "unplugin-dts": "^1.0.0",
+    "vite": "^8.0.10",
     "vitest": "^4.1.5"
   },
   "engines": {
