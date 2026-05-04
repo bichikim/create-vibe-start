@@ -5,9 +5,8 @@ export async function setupCodex() {
     name: 'Codex',
     command: 'codex',
     versionArgs: ['--version'],
-    authCheckArgs: ['--version'],
-    loginArgs: [],
-    loginLabel: 'codex',
+    authCheckArgs: ['login', 'status'],
+    loginArgs: ['login'],
     install: {
       macos: {
         command: 'pnpm',
