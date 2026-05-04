@@ -19,7 +19,7 @@
     "format": "oxfmt",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "reset:dev-tools": "tsx scripts/reset-dev-tools.ts",
+    "reset:environment": "tsx src/cli.ts reset",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
