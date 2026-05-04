@@ -2,6 +2,10 @@
   "name": "create-vibe-start",
   "version": "0.1.0",
   "description": "Interactive CLI onboarding for preparing GitHub, Vercel, and Codex accounts.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bichikim/create-vibe-start.git"
+  },
   "bin": {
     "create-vibe-start": "./dist/cli.js"
   },
@@ -43,7 +47,7 @@
     "vitest": "^4.1.5"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "packageManager": "pnpm@10.33.0"
 }
