@@ -3,6 +3,7 @@
 import {Command} from 'commander'
 import {isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
+import {runResetEnvironment} from './commands/reset-environment.js'
 import {showComplete} from './steps/complete.js'
 import {setupCodex} from './steps/setup-codex.js'
 import {setupGitHub} from './steps/setup-github.js'
@@ -10,7 +11,7 @@ import {setupVercel} from './steps/setup-vercel.js'
 import {showWelcome} from './steps/welcome.js'
 
 export function createProgram() {
-  return new Command()
+  const program = new Command()
     .name('create-vibe-start')
     .description('Prepare GitHub, Vercel, and Codex CLI environments for vibe coding.')
     .version('0.1.0')
@@ -48,6 +49,18 @@ export function createProgram() {
         return
       }
     })
+
+  program
+    .command('reset')
+    .description('Reset GitHub, Vercel, and Codex CLI installs and auth files.')
+    .option('--dry-run', 'Print the reset steps without changing anything.')
+    .option('--yes, -y', 'Skip the confirmation prompt.')
+    .action(async (options: {dryRun?: boolean; yes?: boolean}) => {
+      const ok = await runResetEnvironment(options)
+      process.exitCode = ok ? 0 : 1
+    })
+
+  return program
 }
 
 export async function runCli(argv = process.argv) {

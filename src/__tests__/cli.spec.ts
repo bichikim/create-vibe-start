@@ -6,6 +6,7 @@ const setupVercelMock = vi.fn()
 const setupCodexMock = vi.fn()
 const showCompleteMock = vi.fn()
 const outroMock = vi.fn()
+const runResetEnvironmentMock = vi.fn()
 
 vi.mock('../steps/welcome.js', () => ({
   showWelcome: showWelcomeMock,
@@ -27,6 +28,10 @@ vi.mock('../steps/complete.js', () => ({
   showComplete: showCompleteMock,
 }))
 
+vi.mock('../commands/reset-environment.js', () => ({
+  runResetEnvironment: runResetEnvironmentMock,
+}))
+
 vi.mock('@clack/prompts', async () => {
   const actual = await vi.importActual<typeof import('@clack/prompts')>('@clack/prompts')
   return {
@@ -43,6 +48,8 @@ describe('CLI program', () => {
     setupCodexMock.mockReset().mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
     showCompleteMock.mockReset()
     outroMock.mockReset()
+    runResetEnvironmentMock.mockReset().mockResolvedValue(true)
+    process.exitCode = undefined
   })
 
   it('runs all setup steps by default', async () => {
@@ -81,5 +88,28 @@ describe('CLI program', () => {
     expect(outroMock).toHaveBeenCalledWith('준비가 필요할 때 다시 실행해주세요.')
     expect(setupGitHubMock).not.toHaveBeenCalled()
     expect(exitSpy).toHaveBeenCalledWith(0)
+  })
+
+  it('runs reset as a subcommand without starting onboarding', async () => {
+    const {runCli} = await import('../cli.js')
+
+    await runCli(['node', 'create-vibe-start', 'reset', '--yes', '--dry-run'])
+
+    expect(runResetEnvironmentMock).toHaveBeenCalledWith({yes: true, dryRun: true})
+    expect(showWelcomeMock).not.toHaveBeenCalled()
+    expect(setupGitHubMock).not.toHaveBeenCalled()
+    expect(setupVercelMock).not.toHaveBeenCalled()
+    expect(setupCodexMock).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(0)
+  })
+
+  it('marks reset warnings as a failed process status', async () => {
+    runResetEnvironmentMock.mockResolvedValue(false)
+    const {runCli} = await import('../cli.js')
+
+    await runCli(['node', 'create-vibe-start', 'reset', '--yes'])
+
+    expect(runResetEnvironmentMock).toHaveBeenCalledWith({yes: true})
+    expect(process.exitCode).toBe(1)
   })
 })
