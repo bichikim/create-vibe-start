@@ -4,6 +4,7 @@ export async function setupGitHub() {
   return setupTool({
     name: 'GitHub',
     command: 'gh',
+    commandLabel: 'gh (github)',
     versionArgs: ['--version'],
     authCheckArgs: ['auth', 'status'],
     loginArgs: ['auth', 'login'],
