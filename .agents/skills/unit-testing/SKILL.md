@@ -23,6 +23,7 @@ description: Use when adding or updating unit tests for create-vibe-start CLI mo
 ## Vitest Pattern
 
 - Use `vi.mock(...)` before importing the module under test when the module reads mocked imports at load time.
+- Prefer Vitest tools such as `vi.spyOn(...)` for mocking runtime values; do not directly rewrite globals with `Object.defineProperty(...)` unless no test helper can model the behavior.
 - Use dynamic `await import(...)` after mocks for step configuration tests.
 - Reset module state with `vi.resetModules()` when testing environment-sensitive modules.
 - Assert command arrays exactly so install/login regressions are easy to catch.
