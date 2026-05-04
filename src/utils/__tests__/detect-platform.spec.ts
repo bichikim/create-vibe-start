@@ -1,15 +1,11 @@
-import {afterEach, describe, expect, it} from 'vitest'
-
-const originalPlatform = process.platform
+import {afterEach, describe, expect, it, vi} from 'vitest'
 
 function setPlatform(platform: NodeJS.Platform) {
-  Object.defineProperty(process, 'platform', {
-    value: platform,
-  })
+  vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
 }
 
 afterEach(() => {
-  setPlatform(originalPlatform)
+  vi.restoreAllMocks()
 })
 
 describe('detectPlatform', () => {
