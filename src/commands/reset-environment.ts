@@ -5,6 +5,7 @@ import {homedir} from 'node:os'
 import path from 'node:path'
 import {intro, isCancel, log, note, outro, text} from '@clack/prompts'
 import chalk from 'chalk'
+import {commandExists} from '../utils/command-exists.js'
 
 type CommandStep = {
   kind: 'command'
@@ -20,6 +21,7 @@ type RemoveStep = {
 }
 
 type Step = CommandStep | RemoveStep
+type PackageManager = 'pnpm' | 'npm'
 
 type ResetOptions = {
   dryRun?: boolean
@@ -30,7 +32,8 @@ const home = homedir()
 const {platform} = process
 
 export async function runResetEnvironment(options: ResetOptions = {}): Promise<boolean> {
-  const steps: Step[] = [...githubSteps(), ...vercelSteps(), ...codexSteps()]
+  const packageManager = (await commandExists('pnpm')) ? 'pnpm' : 'npm'
+  const steps: Step[] = [...githubSteps(), ...vercelSteps(packageManager), ...codexSteps(packageManager)]
 
   intro(chalk.cyan('create-vibe-start reset'))
 
@@ -101,7 +104,7 @@ function githubSteps(): Step[] {
   return steps
 }
 
-function vercelSteps(): Step[] {
+function vercelSteps(packageManager: PackageManager): Step[] {
   return [
     {
       kind: 'command',
@@ -109,12 +112,7 @@ function vercelSteps(): Step[] {
       command: 'vercel',
       args: ['logout', '--non-interactive'],
     },
-    {
-      kind: 'command',
-      label: 'Uninstall Vercel CLI installed by pnpm',
-      command: 'pnpm',
-      args: ['remove', '-g', 'vercel'],
-    },
+    uninstallGlobalPackageStep(packageManager, 'Vercel CLI', 'vercel'),
     {
       kind: 'remove',
       label: 'Remove Vercel CLI auth/config directory',
@@ -157,7 +155,7 @@ function vercelCacheDirectory(): string {
   return path.join(home, '.cache', 'com.vercel.cli')
 }
 
-function codexSteps(): Step[] {
+function codexSteps(packageManager: PackageManager): Step[] {
   return [
     {
       kind: 'command',
@@ -165,18 +163,29 @@ function codexSteps(): Step[] {
       command: 'codex',
       args: ['logout'],
     },
-    {
-      kind: 'command',
-      label: 'Uninstall Codex CLI installed by pnpm',
-      command: 'pnpm',
-      args: ['remove', '-g', '@openai/codex'],
-    },
+    uninstallGlobalPackageStep(packageManager, 'Codex CLI', '@openai/codex'),
     {
       kind: 'remove',
       label: 'Remove Codex CLI auth file',
       target: path.join(home, '.codex', 'auth.json'),
     },
   ]
+}
+
+function uninstallGlobalPackageStep(packageManager: PackageManager, name: string, pkg: string): CommandStep {
+  return packageManager === 'pnpm'
+    ? {
+        kind: 'command',
+        label: `Uninstall ${name} installed by pnpm`,
+        command: 'pnpm',
+        args: ['remove', '-g', pkg],
+      }
+    : {
+        kind: 'command',
+        label: `Uninstall ${name} installed by npm`,
+        command: 'npm',
+        args: ['uninstall', '-g', pkg],
+      }
 }
 
 async function runSteps(steps: Step[], dryRun: boolean): Promise<boolean[]> {

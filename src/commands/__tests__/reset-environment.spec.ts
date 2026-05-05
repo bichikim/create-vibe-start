@@ -5,6 +5,7 @@ const spawnMock = vi.hoisted(() => vi.fn())
 const accessMock = vi.hoisted(() => vi.fn())
 const rmMock = vi.hoisted(() => vi.fn())
 const textMock = vi.hoisted(() => vi.fn())
+const commandExistsMock = vi.hoisted(() => vi.fn())
 const logMock = vi.hoisted(() => ({
   info: vi.fn(),
   message: vi.fn(),
@@ -19,6 +20,10 @@ vi.mock('node:child_process', () => ({
 vi.mock('node:fs/promises', () => ({
   access: accessMock,
   rm: rmMock,
+}))
+
+vi.mock('../../utils/command-exists.js', () => ({
+  commandExists: commandExistsMock,
 }))
 
 vi.mock('@clack/prompts', () => ({
@@ -36,6 +41,7 @@ describe('runResetEnvironment', () => {
     accessMock.mockReset().mockRejectedValue(new Error('missing'))
     rmMock.mockReset()
     textMock.mockReset().mockResolvedValue('reset')
+    commandExistsMock.mockReset().mockResolvedValue(true)
     logMock.info.mockReset()
     logMock.message.mockReset()
     logMock.step.mockReset()
@@ -66,6 +72,22 @@ describe('runResetEnvironment', () => {
       shell: false,
     })
     expect(spawnMock).toHaveBeenCalledWith('pnpm', ['remove', '-g', '@openai/codex'], {
+      stdio: 'inherit',
+      shell: false,
+    })
+  })
+
+  it('uses npm uninstall commands when pnpm is missing', async () => {
+    commandExistsMock.mockResolvedValue(false)
+    const {runResetEnvironment} = await import('../reset-environment.js')
+
+    await expect(runResetEnvironment({yes: true})).resolves.toBe(false)
+
+    expect(spawnMock).toHaveBeenCalledWith('npm', ['uninstall', '-g', 'vercel'], {
+      stdio: 'inherit',
+      shell: false,
+    })
+    expect(spawnMock).toHaveBeenCalledWith('npm', ['uninstall', '-g', '@openai/codex'], {
       stdio: 'inherit',
       shell: false,
     })
