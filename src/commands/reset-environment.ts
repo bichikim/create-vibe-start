@@ -67,8 +67,8 @@ export async function runResetEnvironment(options: ResetOptions = {}): Promise<b
 
   outro(
     failed
-      ? chalk.yellow('초기화가 경고와 함께 완료되었습니다. create-vibe-start를 다시 실행해 확인하세요.')
-      : chalk.green('초기화가 완료되었습니다. create-vibe-start를 다시 실행해 확인하세요.'),
+      ? chalk.yellow('초기화가 경고와 함께 완료되었습니다.')
+      : chalk.green('초기화가 완료되었습니다.'),
   )
 
   return !failed

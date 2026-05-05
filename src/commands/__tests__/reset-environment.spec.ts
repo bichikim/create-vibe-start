@@ -6,6 +6,7 @@ const accessMock = vi.hoisted(() => vi.fn())
 const rmMock = vi.hoisted(() => vi.fn())
 const textMock = vi.hoisted(() => vi.fn())
 const commandExistsMock = vi.hoisted(() => vi.fn())
+const outroMock = vi.hoisted(() => vi.fn())
 const logMock = vi.hoisted(() => ({
   info: vi.fn(),
   message: vi.fn(),
@@ -31,7 +32,7 @@ vi.mock('@clack/prompts', () => ({
   isCancel: vi.fn(() => false),
   log: logMock,
   note: vi.fn(),
-  outro: vi.fn(),
+  outro: outroMock,
   text: textMock,
 }))
 
@@ -42,6 +43,7 @@ describe('runResetEnvironment', () => {
     rmMock.mockReset()
     textMock.mockReset().mockResolvedValue('reset')
     commandExistsMock.mockReset().mockResolvedValue(true)
+    outroMock.mockReset()
     logMock.info.mockReset()
     logMock.message.mockReset()
     logMock.step.mockReset()
@@ -101,5 +103,13 @@ describe('runResetEnvironment', () => {
     expect(spawnMock).not.toHaveBeenCalled()
     expect(accessMock).not.toHaveBeenCalled()
     expect(rmMock).not.toHaveBeenCalled()
+  })
+
+  it('does not tell users to rerun create-vibe-start after reset', async () => {
+    const {runResetEnvironment} = await import('../reset-environment.js')
+
+    await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
+
+    expect(outroMock).toHaveBeenCalledWith('초기화가 완료되었습니다.')
   })
 })
