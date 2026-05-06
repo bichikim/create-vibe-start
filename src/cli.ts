@@ -8,6 +8,7 @@ import {runResetEnvironment} from './commands/reset-environment.js'
 import {showComplete} from './steps/complete.js'
 import {setupCodex} from './steps/setup-codex.js'
 import {setupGitHub} from './steps/setup-github.js'
+import type {SetupResult, SetupStep} from './steps/setup-tool.js'
 import {setupVercel} from './steps/setup-vercel.js'
 import {showWelcome} from './steps/welcome.js'
 
@@ -32,19 +33,12 @@ export function createProgram() {
           return
         }
 
-        const results = []
-
-        if (!options.skipGithub) {
-          results.push(await setupGitHub())
-        }
-
-        if (!options.skipVercel) {
-          results.push(await setupVercel())
-        }
-
-        if (!options.skipCodex) {
-          results.push(await setupCodex())
-        }
+        const steps: SetupStep[] = [
+          ...(options.skipGithub ? [] : [setupGitHub]),
+          ...(options.skipVercel ? [] : [setupVercel]),
+          ...(options.skipCodex ? [] : [setupCodex]),
+        ]
+        const results = await runSetupSteps(steps)
 
         showComplete(results)
       } catch (error) {
@@ -65,6 +59,13 @@ export function createProgram() {
     })
 
   return program
+}
+
+async function runSetupSteps(steps: SetupStep[]): Promise<SetupResult[]> {
+  return steps.reduce<Promise<SetupResult[]>>(async (previousResults, step) => {
+    const results = await previousResults
+    return [...results, await step()]
+  }, Promise.resolve([]))
 }
 
 export async function runCli(argv = process.argv) {

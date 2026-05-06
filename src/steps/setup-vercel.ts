@@ -1,7 +1,7 @@
 import {commandExists} from '../utils/command-exists.js'
-import {setupTool} from './setup-tool.js'
+import {type SetupStep, setupTool} from './setup-tool.js'
 
-export async function setupVercel() {
+export const setupVercel: SetupStep = async () => {
   const installCommand = (await commandExists('pnpm'))
     ? {
         command: 'pnpm',
