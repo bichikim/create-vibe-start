@@ -32,9 +32,14 @@ jobs:
           echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
 
-          ALL_VERSIONS_JSON="$(npm view "${PACKAGE_NAME}" versions --json 2>/dev/null || echo "[]")"
+          if ! ALL_VERSIONS_JSON="$(npm view "${PACKAGE_NAME}" versions --json)"; then
+            echo "Failed to fetch versions from npm registry for ${PACKAGE_NAME}."
+            exit 1
+          fi
+
           if [ -z "${ALL_VERSIONS_JSON}" ]; then
-            ALL_VERSIONS_JSON="[]"
+            echo "npm returned an empty response for ${PACKAGE_NAME} versions."
+            exit 1
           fi
 
           ALL_VERSIONS_JSON="${ALL_VERSIONS_JSON}" PACKAGE_VERSION="${PACKAGE_VERSION}" node <<'EOF'
@@ -133,7 +138,12 @@ jobs:
             return 0;
           };
 
-          const parsedRaw = JSON.parse(raw);
+          let parsedRaw;
+          try {
+            parsedRaw = JSON.parse(raw);
+          } catch (error) {
+            throw new Error(`Unable to parse npm versions JSON: ${error.message}`);
+          }
           const versions = Array.isArray(parsedRaw) ? parsedRaw : [parsedRaw];
           const alphaVersions = versions.filter((value) => typeof value === "string" && value.includes("-alpha."));
 
@@ -188,9 +198,14 @@ jobs:
       - name: Create GitHub prerelease
         if: steps.version-gate.outputs.should_release == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           VERSION: ${{ steps.version-gate.outputs.package_version }}
         run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "Missing RELEASE_TOKEN secret. This token is required so the release event can trigger npm publish workflow."
+            exit 1
+          fi
+
           TAG="v${VERSION}"
           if gh release view "${TAG}" >/dev/null 2>&1; then
             echo "Release ${TAG} already exists; skip creating release."
