@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   alpha-release:
+    if: github.ref == 'refs/heads/release/alpha'
     runs-on: ubuntu-latest
 
     steps:
