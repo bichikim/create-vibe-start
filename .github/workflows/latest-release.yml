@@ -1,0 +1,165 @@
+name: Latest Release Gate
+
+on:
+  push:
+    branches:
+      - release/latest
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: latest-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  latest-release:
+    if: github.ref == 'refs/heads/release/latest'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve package and npm latest versions
+        id: version-gate
+        shell: bash
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+          if ! ALL_VERSIONS_JSON="$(npm view "${PACKAGE_NAME}" versions --json)"; then
+            echo "Failed to fetch versions from npm registry for ${PACKAGE_NAME}."
+            exit 1
+          fi
+
+          if [ -z "${ALL_VERSIONS_JSON}" ]; then
+            echo "npm returned an empty response for ${PACKAGE_NAME} versions."
+            exit 1
+          fi
+
+          ALL_VERSIONS_JSON="${ALL_VERSIONS_JSON}" PACKAGE_VERSION="${PACKAGE_VERSION}" node <<'EOF'
+          const fs = require("node:fs");
+
+          const outputPath = process.env.GITHUB_OUTPUT;
+          const packageVersion = process.env.PACKAGE_VERSION;
+          const raw = process.env.ALL_VERSIONS_JSON ?? "[]";
+
+          const writeOutput = (name, value) => {
+            fs.appendFileSync(outputPath, `${name}=${value}\n`);
+          };
+
+          const parseVersion = (input) => {
+            const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(input);
+            if (!match) {
+              return null;
+            }
+            return {
+              major: Number(match[1]),
+              minor: Number(match[2]),
+              patch: Number(match[3]),
+            };
+          };
+
+          const compareSemver = (leftRaw, rightRaw) => {
+            const left = parseVersion(leftRaw);
+            const right = parseVersion(rightRaw);
+            if (!left || !right) {
+              throw new Error(`Invalid stable semver compare: ${leftRaw} vs ${rightRaw}`);
+            }
+            if (left.major !== right.major) {
+              return left.major - right.major;
+            }
+            if (left.minor !== right.minor) {
+              return left.minor - right.minor;
+            }
+            return left.patch - right.patch;
+          };
+
+          let parsedRaw;
+          try {
+            parsedRaw = JSON.parse(raw);
+          } catch (error) {
+            throw new Error(`Unable to parse npm versions JSON: ${error.message}`);
+          }
+          const versions = Array.isArray(parsedRaw) ? parsedRaw : [parsedRaw];
+          const stableVersions = versions.filter((value) => parseVersion(value));
+
+          const sortedStable = [...stableVersions].sort(compareSemver);
+          const latestNpmStable = sortedStable.length > 0 ? sortedStable[sortedStable.length - 1] : "";
+          writeOutput("latest_npm_stable", latestNpmStable);
+
+          if (!parseVersion(packageVersion)) {
+            writeOutput("should_release", "false");
+            writeOutput("reason", "package-version-is-not-stable");
+            process.exit(0);
+          }
+
+          if (!latestNpmStable) {
+            writeOutput("should_release", "true");
+            writeOutput("reason", "no-stable-version-on-npm");
+            process.exit(0);
+          }
+
+          if (compareSemver(packageVersion, latestNpmStable) > 0) {
+            writeOutput("should_release", "true");
+            writeOutput("reason", "package-version-is-newer-than-npm-stable");
+            process.exit(0);
+          }
+
+          writeOutput("should_release", "false");
+          writeOutput("reason", "package-version-is-not-newer-than-npm-stable");
+          EOF
+
+      - name: Print gate result
+        run: |
+          echo "package_name=${{ steps.version-gate.outputs.package_name }}"
+          echo "package_version=${{ steps.version-gate.outputs.package_version }}"
+          echo "latest_npm_stable=${{ steps.version-gate.outputs.latest_npm_stable }}"
+          echo "should_release=${{ steps.version-gate.outputs.should_release }}"
+          echo "reason=${{ steps.version-gate.outputs.reason }}"
+
+      - name: Create and push git tag
+        if: steps.version-gate.outputs.should_release == 'true'
+        env:
+          VERSION: ${{ steps.version-gate.outputs.package_version }}
+        run: |
+          TAG="v${VERSION}"
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists; skip creating tag."
+            exit 0
+          fi
+
+          git tag "${TAG}"
+          git push origin "${TAG}"
+
+      - name: Create GitHub release
+        if: steps.version-gate.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.version-gate.outputs.package_version }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "Missing RELEASE_TOKEN secret. This token is required so the release event can trigger npm publish workflow."
+            exit 1
+          fi
+
+          TAG="v${VERSION}"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; skip creating release."
+            exit 0
+          fi
+
+          gh release create "${TAG}" \
+            --target "${GITHUB_SHA}" \
+            --title "${TAG}" \
+            --generate-notes
+
+      - name: Skip release
+        if: steps.version-gate.outputs.should_release != 'true'
+        run: echo "Skipping latest release. ${{ steps.version-gate.outputs.reason }}"
