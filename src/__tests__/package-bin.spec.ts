@@ -8,9 +8,11 @@ describe('package bin entry', () => {
     const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
       bin: Record<string, string>
       files: string[]
+      name: string
       scripts: Record<string, string>
     }
 
+    expect(packageJson.name).toBe('create-vibe-start')
     expect(packageJson.bin).toEqual({'create-vibe-start': './dist/cli.js'})
     expect(packageJson.files).toEqual(['dist'])
     expect(packageJson.scripts['reset:environment']).toBe('tsx src/cli.ts reset')
