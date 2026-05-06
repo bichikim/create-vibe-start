@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import {createRequire} from 'node:module'
 import {Command} from 'commander'
 import {isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
@@ -10,11 +11,14 @@ import {setupGitHub} from './steps/setup-github.js'
 import {setupVercel} from './steps/setup-vercel.js'
 import {showWelcome} from './steps/welcome.js'
 
+const require = createRequire(import.meta.url)
+const packageJson = require('../package.json') as {version: string}
+
 export function createProgram() {
   const program = new Command()
     .name('create-vibe-start')
     .description('Prepare GitHub, Vercel, and Codex CLI environments for vibe coding.')
-    .version('0.1.0')
+    .version(packageJson.version)
     .option('--skip-github', 'Skip GitHub CLI setup')
     .option('--skip-vercel', 'Skip Vercel CLI setup')
     .option('--skip-codex', 'Skip Codex CLI setup')

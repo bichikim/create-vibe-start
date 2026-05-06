@@ -32,15 +32,12 @@ const home = homedir()
 const {platform} = process
 
 export async function runResetEnvironment(options: ResetOptions = {}): Promise<boolean> {
-  const packageManager = (await commandExists('pnpm')) ? 'pnpm' : 'npm'
-  const steps: Step[] = [...githubSteps(), ...vercelSteps(packageManager), ...codexSteps(packageManager)]
+  const packageManagers = await globalPackageManagers()
+  const steps: Step[] = [...githubSteps(), ...vercelSteps(packageManagers), ...codexSteps(packageManagers)]
 
   intro(chalk.cyan('create-vibe-start reset'))
 
-  note(
-    steps.map((step) => `- ${step.label}`).join('\n'),
-    'GitHub, Vercel, Codex CLI 환경을 초기화합니다.',
-  )
+  note(steps.map((step) => `- ${step.label}`).join('\n'), 'GitHub, Vercel, Codex CLI 환경을 초기화합니다.')
 
   if (!options.yes) {
     const answer = await text({
@@ -65,11 +62,7 @@ export async function runResetEnvironment(options: ResetOptions = {}): Promise<b
   const results = await runSteps(steps, Boolean(options.dryRun))
   const failed = results.some((ok) => !ok)
 
-  outro(
-    failed
-      ? chalk.yellow('초기화가 경고와 함께 완료되었습니다.')
-      : chalk.green('초기화가 완료되었습니다.'),
-  )
+  outro(failed ? chalk.yellow('초기화가 경고와 함께 완료되었습니다.') : chalk.green('초기화가 완료되었습니다.'))
 
   return !failed
 }
@@ -104,7 +97,21 @@ function githubSteps(): Step[] {
   return steps
 }
 
-function vercelSteps(packageManager: PackageManager): Step[] {
+async function globalPackageManagers(): Promise<PackageManager[]> {
+  const managers: PackageManager[] = []
+
+  if (await commandExists('pnpm')) {
+    managers.push('pnpm')
+  }
+
+  if (await commandExists('npm')) {
+    managers.push('npm')
+  }
+
+  return managers
+}
+
+function vercelSteps(packageManagers: PackageManager[]): Step[] {
   return [
     {
       kind: 'command',
@@ -112,7 +119,7 @@ function vercelSteps(packageManager: PackageManager): Step[] {
       command: 'vercel',
       args: ['logout', '--non-interactive'],
     },
-    uninstallGlobalPackageStep(packageManager, 'Vercel CLI', 'vercel'),
+    ...uninstallGlobalPackageSteps(packageManagers, 'Vercel CLI', 'vercel'),
     {
       kind: 'remove',
       label: 'Remove Vercel CLI auth/config directory',
@@ -155,7 +162,7 @@ function vercelCacheDirectory(): string {
   return path.join(home, '.cache', 'com.vercel.cli')
 }
 
-function codexSteps(packageManager: PackageManager): Step[] {
+function codexSteps(packageManagers: PackageManager[]): Step[] {
   return [
     {
       kind: 'command',
@@ -163,7 +170,7 @@ function codexSteps(packageManager: PackageManager): Step[] {
       command: 'codex',
       args: ['logout'],
     },
-    uninstallGlobalPackageStep(packageManager, 'Codex CLI', '@openai/codex'),
+    ...uninstallGlobalPackageSteps(packageManagers, 'Codex CLI', '@openai/codex'),
     {
       kind: 'remove',
       label: 'Remove Codex CLI auth file',
@@ -172,20 +179,24 @@ function codexSteps(packageManager: PackageManager): Step[] {
   ]
 }
 
-function uninstallGlobalPackageStep(packageManager: PackageManager, name: string, pkg: string): CommandStep {
-  return packageManager === 'pnpm'
-    ? {
+function uninstallGlobalPackageSteps(packageManagers: PackageManager[], name: string, pkg: string): CommandStep[] {
+  return packageManagers.map((packageManager) => {
+    if (packageManager === 'pnpm') {
+      return {
         kind: 'command',
         label: `Uninstall ${name} installed by pnpm`,
         command: 'pnpm',
         args: ['remove', '-g', pkg],
       }
-    : {
-        kind: 'command',
-        label: `Uninstall ${name} installed by npm`,
-        command: 'npm',
-        args: ['uninstall', '-g', pkg],
-      }
+    }
+
+    return {
+      kind: 'command',
+      label: `Uninstall ${name} installed by npm`,
+      command: 'npm',
+      args: ['uninstall', '-g', pkg],
+    }
+  })
 }
 
 async function runSteps(steps: Step[], dryRun: boolean): Promise<boolean[]> {

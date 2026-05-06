@@ -57,7 +57,15 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
     }
   }
 
-  await runCommandQuietly(options.command, options.versionArgs)
+  try {
+    await runCommandQuietly(options.command, options.versionArgs)
+  } catch (error) {
+    return {
+      name: options.name,
+      status: 'failed',
+      message: `${options.name} CLI 버전 확인 실패: ${formatError(error)}`,
+    }
+  }
 
   const loggedIn = await isAuthenticated(options)
   if (loggedIn) {
@@ -81,11 +89,19 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
     }
   }
 
-  await runCommand(
-    options.command,
-    options.loginArgs,
-    options.loginLabel ?? `${options.command} ${options.loginArgs.join(' ')}`,
-  )
+  try {
+    await runCommand(
+      options.command,
+      options.loginArgs,
+      options.loginLabel ?? `${options.command} ${options.loginArgs.join(' ')}`,
+    )
+  } catch (error) {
+    return {
+      name: options.name,
+      status: 'failed',
+      message: `${options.name} 로그인 실패: ${formatError(error)}`,
+    }
+  }
 
   const ready = await isAuthenticated(options)
   return ready
@@ -144,4 +160,8 @@ async function isAuthenticated(options: SetupToolOptions): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
