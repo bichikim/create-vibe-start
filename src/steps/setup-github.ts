@@ -1,6 +1,6 @@
-import {setupTool} from './setup-tool.js'
+import {type SetupStep, setupTool} from './setup-tool.js'
 
-export async function setupGitHub() {
+export const setupGitHub: SetupStep = async () => {
   return setupTool({
     name: 'GitHub',
     command: 'gh',

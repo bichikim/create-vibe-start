@@ -27,6 +27,8 @@ export type SetupResult = {
   message: string
 }
 
+export type SetupStep = () => Promise<SetupResult>
+
 export async function setupTool(options: SetupToolOptions): Promise<SetupResult> {
   log.step(chalk.bold(`${options.name} 준비`))
 
