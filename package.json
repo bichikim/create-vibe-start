@@ -21,6 +21,8 @@
     "lint:fix": "oxlint --fix",
     "reset:environment": "tsx src/cli.ts reset",
     "start": "node dist/cli.js",
+    "version:alpha": "pnpm version prerelease --preid=alpha",
+    "version:latest": "pnpm version patch",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest"
