@@ -2,15 +2,29 @@
 
 `create-vibe-start` is an interactive CLI onboarding tool for preparing GitHub, Vercel, and Codex command-line environments before starting AI web app development.
 
-## Install
+## Quick Start
 
-Install with npm:
+Run the onboarding flow with npm:
+
+```bash
+npm create vibe-start
+```
+
+You can also run the package directly:
+
+```bash
+npx create-vibe-start
+```
+
+## Global Install
+
+Install globally with npm:
 
 ```bash
 npm install -g create-vibe-start
 ```
 
-Install with pnpm:
+Install globally with pnpm:
 
 ```bash
 pnpm add -g create-vibe-start
