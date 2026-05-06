@@ -5,7 +5,7 @@ import {homedir} from 'node:os'
 import path from 'node:path'
 import {intro, isCancel, log, note, outro, text} from '@clack/prompts'
 import chalk from 'chalk'
-import {commandExists} from '../utils/command-exists.js'
+import {commandExists} from '../utils/command-exists'
 
 type CommandStep = {
   kind: 'command'

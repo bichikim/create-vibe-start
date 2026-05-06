@@ -13,7 +13,7 @@ describe('commandExists', () => {
 
   it('returns true when which resolves', async () => {
     whichMock.mockResolvedValue('/usr/local/bin/gh')
-    const {commandExists} = await import('../command-exists.js')
+    const {commandExists} = await import('../command-exists')
 
     await expect(commandExists('gh')).resolves.toBe(true)
     expect(whichMock).toHaveBeenCalledWith('gh')
@@ -21,7 +21,7 @@ describe('commandExists', () => {
 
   it('returns false when which rejects', async () => {
     whichMock.mockRejectedValue(new Error('not found'))
-    const {commandExists} = await import('../command-exists.js')
+    const {commandExists} = await import('../command-exists')
 
     await expect(commandExists('missing')).resolves.toBe(false)
   })

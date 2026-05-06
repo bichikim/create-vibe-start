@@ -12,7 +12,7 @@ describe('setupGitHub', () => {
   })
 
   it('configures GitHub CLI setup', async () => {
-    const {setupGitHub} = await import('../setup-github.js')
+    const {setupGitHub} = await import('../setup-github')
 
     await setupGitHub()
 

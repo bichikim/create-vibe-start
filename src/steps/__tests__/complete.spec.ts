@@ -20,7 +20,7 @@ describe('showComplete', () => {
   })
 
   it('prints a ready outro when every step is ready', async () => {
-    const {showComplete} = await import('../complete.js')
+    const {showComplete} = await import('../complete')
 
     showComplete([
       {name: 'GitHub', status: 'ready', message: 'GitHub 로그인 완료'},
@@ -33,7 +33,7 @@ describe('showComplete', () => {
   })
 
   it('prints a partial outro when a step is skipped or failed', async () => {
-    const {showComplete} = await import('../complete.js')
+    const {showComplete} = await import('../complete')
 
     showComplete([{name: 'Codex', status: 'skipped', message: 'Codex 로그인을 건너뜀'}])
 

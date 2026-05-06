@@ -82,7 +82,7 @@ describe('setupTool', () => {
 
   it('returns ready when the command exists and auth check passes', async () => {
     commandExistsMock.mockResolvedValue(true)
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -97,7 +97,7 @@ describe('setupTool', () => {
 
   it('uses the command label for the successful check message when provided', async () => {
     commandExistsMock.mockResolvedValue(true)
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await setupTool({...options, commandLabel: 'example cli'})
 
@@ -107,7 +107,7 @@ describe('setupTool', () => {
   it('skips when the command is missing and the user skips installation', async () => {
     commandExistsMock.mockResolvedValue(false)
     selectMock.mockResolvedValue('skip')
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -124,7 +124,7 @@ describe('setupTool', () => {
       .mockRejectedValueOnce(new Error('not logged in'))
       .mockResolvedValueOnce(undefined)
     confirmMock.mockResolvedValue(true)
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -139,7 +139,7 @@ describe('setupTool', () => {
   it('fails when installation finishes but the command is still missing', async () => {
     commandExistsMock.mockResolvedValue(false)
     selectMock.mockResolvedValue('install')
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -151,7 +151,7 @@ describe('setupTool', () => {
   it('skips with a warning when only manual installation guidance is available', async () => {
     commandExistsMock.mockResolvedValue(false)
     detectPlatformMock.mockReturnValue('linux')
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toMatchObject({
       status: 'skipped',
@@ -164,7 +164,7 @@ describe('setupTool', () => {
     commandExistsMock.mockResolvedValue(true)
     runCommandQuietlyMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('not logged in'))
     confirmMock.mockResolvedValue(false)
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -177,7 +177,7 @@ describe('setupTool', () => {
   it('returns failed when version check fails', async () => {
     commandExistsMock.mockResolvedValue(true)
     runCommandQuietlyMock.mockRejectedValueOnce(new Error('broken install'))
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -193,7 +193,7 @@ describe('setupTool', () => {
     runCommandQuietlyMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('not logged in'))
     runCommandMock.mockRejectedValueOnce(new Error('login cancelled'))
     confirmMock.mockResolvedValue(true)
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -209,7 +209,7 @@ describe('setupTool', () => {
       .mockRejectedValueOnce(new Error('not logged in'))
       .mockRejectedValueOnce(new Error('still not logged in'))
     confirmMock.mockResolvedValue(true)
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toEqual({
       name: 'Example',
@@ -221,7 +221,7 @@ describe('setupTool', () => {
   it('skips installation when the install prompt is cancelled', async () => {
     commandExistsMock.mockResolvedValue(false)
     selectMock.mockResolvedValue('cancel')
-    const {setupTool} = await import('../setup-tool.js')
+    const {setupTool} = await import('../setup-tool')
 
     await expect(setupTool(options)).resolves.toMatchObject({
       status: 'skipped',

@@ -57,7 +57,7 @@ describe('runResetEnvironment', () => {
   })
 
   it('keeps running later reset commands when earlier commands fail', async () => {
-    const {runResetEnvironment} = await import('../reset-environment.js')
+    const {runResetEnvironment} = await import('../reset-environment')
 
     await expect(runResetEnvironment({yes: true})).resolves.toBe(false)
 
@@ -89,7 +89,7 @@ describe('runResetEnvironment', () => {
 
   it('uses npm uninstall commands when pnpm is missing', async () => {
     commandExistsMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
-    const {runResetEnvironment} = await import('../reset-environment.js')
+    const {runResetEnvironment} = await import('../reset-environment')
 
     await expect(runResetEnvironment({yes: true})).resolves.toBe(false)
 
@@ -104,7 +104,7 @@ describe('runResetEnvironment', () => {
   })
 
   it('prints reset steps without executing them in dry-run mode', async () => {
-    const {runResetEnvironment} = await import('../reset-environment.js')
+    const {runResetEnvironment} = await import('../reset-environment')
 
     await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
 
@@ -114,7 +114,7 @@ describe('runResetEnvironment', () => {
   })
 
   it('does not tell users to rerun create-vibe-start after reset', async () => {
-    const {runResetEnvironment} = await import('../reset-environment.js')
+    const {runResetEnvironment} = await import('../reset-environment')
 
     await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
 

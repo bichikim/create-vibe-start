@@ -19,7 +19,7 @@ describe('setupVercel', () => {
   })
 
   it('configures Vercel CLI setup', async () => {
-    const {setupVercel} = await import('../setup-vercel.js')
+    const {setupVercel} = await import('../setup-vercel')
 
     await setupVercel()
 
@@ -53,7 +53,7 @@ describe('setupVercel', () => {
 
   it('uses pnpm for installation when pnpm exists', async () => {
     commandExistsMock.mockResolvedValue(true)
-    const {setupVercel} = await import('../setup-vercel.js')
+    const {setupVercel} = await import('../setup-vercel')
 
     await setupVercel()
 
