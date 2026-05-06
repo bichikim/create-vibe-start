@@ -1,4 +1,8 @@
+import {createRequire} from 'node:module'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
+
+const require = createRequire(import.meta.url)
+const packageJson = require('../../package.json') as {version: string}
 
 const showWelcomeMock = vi.fn()
 const setupGitHubMock = vi.fn()
@@ -65,6 +69,12 @@ describe('CLI program', () => {
       {name: 'Vercel', status: 'ready', message: 'ok'},
       {name: 'Codex', status: 'ready', message: 'ok'},
     ])
+  })
+
+  it('uses the package version for --version output', async () => {
+    const {createProgram} = await import('../cli.js')
+
+    expect(createProgram().version()).toBe(packageJson.version)
   })
 
   it('honors skip options', async () => {
