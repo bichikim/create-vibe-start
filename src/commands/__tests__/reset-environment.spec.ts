@@ -69,6 +69,10 @@ describe('runResetEnvironment', () => {
       stdio: 'inherit',
       shell: false,
     })
+    expect(spawnMock).toHaveBeenCalledWith('npm', ['uninstall', '-g', 'vercel'], {
+      stdio: 'inherit',
+      shell: false,
+    })
     expect(spawnMock).toHaveBeenCalledWith('codex', ['logout'], {
       stdio: 'inherit',
       shell: false,
@@ -77,10 +81,14 @@ describe('runResetEnvironment', () => {
       stdio: 'inherit',
       shell: false,
     })
+    expect(spawnMock).toHaveBeenCalledWith('npm', ['uninstall', '-g', '@openai/codex'], {
+      stdio: 'inherit',
+      shell: false,
+    })
   })
 
   it('uses npm uninstall commands when pnpm is missing', async () => {
-    commandExistsMock.mockResolvedValue(false)
+    commandExistsMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
     const {runResetEnvironment} = await import('../reset-environment.js')
 
     await expect(runResetEnvironment({yes: true})).resolves.toBe(false)

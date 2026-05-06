@@ -174,6 +174,34 @@ describe('setupTool', () => {
     expect(runCommandMock).not.toHaveBeenCalled()
   })
 
+  it('returns failed when version check fails', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    runCommandQuietlyMock.mockRejectedValueOnce(new Error('broken install'))
+    const {setupTool} = await import('../setup-tool.js')
+
+    await expect(setupTool(options)).resolves.toEqual({
+      name: 'Example',
+      status: 'failed',
+      message: 'Example CLI 버전 확인 실패: broken install',
+    })
+
+    expect(confirmMock).not.toHaveBeenCalled()
+  })
+
+  it('returns failed when login command fails', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    runCommandQuietlyMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('not logged in'))
+    runCommandMock.mockRejectedValueOnce(new Error('login cancelled'))
+    confirmMock.mockResolvedValue(true)
+    const {setupTool} = await import('../setup-tool.js')
+
+    await expect(setupTool(options)).resolves.toEqual({
+      name: 'Example',
+      status: 'failed',
+      message: 'Example 로그인 실패: login cancelled',
+    })
+  })
+
   it('returns failed when login completes but auth check still fails', async () => {
     commandExistsMock.mockResolvedValue(true)
     runCommandQuietlyMock
