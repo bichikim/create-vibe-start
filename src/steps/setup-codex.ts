@@ -1,5 +1,5 @@
-import {commandExists} from '../utils/command-exists.js'
-import {type SetupStep, setupTool} from './setup-tool.js'
+import {commandExists} from '../utils/command-exists'
+import {type SetupStep, setupTool} from './setup-tool'
 
 export const setupCodex: SetupStep = async () => {
   const installCommand = (await commandExists('pnpm'))

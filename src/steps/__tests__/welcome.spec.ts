@@ -19,7 +19,7 @@ describe('showWelcome', () => {
 
   it('shows onboarding copy and asks to proceed', async () => {
     confirmMock.mockResolvedValue(true)
-    const {showWelcome} = await import('../welcome.js')
+    const {showWelcome} = await import('../welcome')
 
     await expect(showWelcome()).resolves.toBe(true)
 

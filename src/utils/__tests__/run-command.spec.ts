@@ -20,7 +20,7 @@ describe('run-command utilities', () => {
   })
 
   it('runs visible commands with inherited stdio', async () => {
-    const {runCommand} = await import('../run-command.js')
+    const {runCommand} = await import('../run-command')
 
     await runCommand('gh', ['auth', 'login'], 'gh auth login')
 
@@ -32,7 +32,7 @@ describe('run-command utilities', () => {
   })
 
   it('runs quiet commands with piped stdio', async () => {
-    const {runCommandQuietly} = await import('../run-command.js')
+    const {runCommandQuietly} = await import('../run-command')
 
     await runCommandQuietly('gh', ['--version'])
 

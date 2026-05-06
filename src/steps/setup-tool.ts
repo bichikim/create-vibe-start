@@ -1,8 +1,8 @@
 import {confirm, isCancel, log, select, spinner} from '@clack/prompts'
 import chalk from 'chalk'
-import {commandExists} from '../utils/command-exists.js'
-import {detectPlatform} from '../utils/detect-platform.js'
-import {runCommand, runCommandQuietly} from '../utils/run-command.js'
+import {commandExists} from '../utils/command-exists'
+import {detectPlatform} from '../utils/detect-platform'
+import {runCommand, runCommandQuietly} from '../utils/run-command'
 
 type PlatformCommand = {
   command: string

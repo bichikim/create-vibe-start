@@ -10,6 +10,12 @@ Minimum code that solves the problem. Nothing speculative.
 - No error handling for impossible scenarios.
 - If you write 200 lines and it could be 50, rewrite it.
 
+## Import Paths
+
+- Do not include `.js` or `.ts` extensions in TypeScript import paths.
+- TypeScript module resolution handles source imports without those extensions.
+- Keep required extensions for non-code assets, such as `.svg` and `.png`.
+
 ## Dependency Installation
 
 When dependency installation is required in this project:

@@ -57,7 +57,7 @@ describe('CLI program', () => {
   })
 
   it('runs all setup steps by default', async () => {
-    const {runCli} = await import('../cli.js')
+    const {runCli} = await import('../cli')
 
     await runCli(['node', 'create-vibe-start'])
 
@@ -72,13 +72,13 @@ describe('CLI program', () => {
   })
 
   it('uses the package version for --version output', async () => {
-    const {createProgram} = await import('../cli.js')
+    const {createProgram} = await import('../cli')
 
     expect(createProgram().version()).toBe(packageJson.version)
   })
 
   it('honors skip options', async () => {
-    const {runCli} = await import('../cli.js')
+    const {runCli} = await import('../cli')
 
     await runCli(['node', 'create-vibe-start', '--skip-github', '--skip-codex'])
 
@@ -91,7 +91,7 @@ describe('CLI program', () => {
   it('exits early when the welcome prompt is declined', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
     showWelcomeMock.mockResolvedValue(false)
-    const {runCli} = await import('../cli.js')
+    const {runCli} = await import('../cli')
 
     await runCli(['node', 'create-vibe-start'])
 
@@ -101,7 +101,7 @@ describe('CLI program', () => {
   })
 
   it('runs reset as a subcommand without starting onboarding', async () => {
-    const {runCli} = await import('../cli.js')
+    const {runCli} = await import('../cli')
 
     await runCli(['node', 'create-vibe-start', 'reset', '--yes', '--dry-run'])
 
@@ -115,7 +115,7 @@ describe('CLI program', () => {
 
   it('marks reset warnings as a failed process status', async () => {
     runResetEnvironmentMock.mockResolvedValue(false)
-    const {runCli} = await import('../cli.js')
+    const {runCli} = await import('../cli')
 
     await runCli(['node', 'create-vibe-start', 'reset', '--yes'])
 

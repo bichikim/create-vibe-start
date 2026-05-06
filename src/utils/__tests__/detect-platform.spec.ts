@@ -11,21 +11,21 @@ afterEach(() => {
 describe('detectPlatform', () => {
   it('maps darwin to macos', async () => {
     setPlatform('darwin')
-    const {detectPlatform} = await import('../detect-platform.js')
+    const {detectPlatform} = await import('../detect-platform')
 
     expect(detectPlatform()).toBe('macos')
   })
 
   it('maps win32 to windows', async () => {
     setPlatform('win32')
-    const {detectPlatform} = await import('../detect-platform.js')
+    const {detectPlatform} = await import('../detect-platform')
 
     expect(detectPlatform()).toBe('windows')
   })
 
   it('maps other platforms to linux', async () => {
     setPlatform('freebsd')
-    const {detectPlatform} = await import('../detect-platform.js')
+    const {detectPlatform} = await import('../detect-platform')
 
     expect(detectPlatform()).toBe('linux')
   })

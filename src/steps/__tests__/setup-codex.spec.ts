@@ -19,7 +19,7 @@ describe('setupCodex', () => {
   })
 
   it('configures Codex CLI setup', async () => {
-    const {setupCodex} = await import('../setup-codex.js')
+    const {setupCodex} = await import('../setup-codex')
 
     await setupCodex()
 
@@ -53,7 +53,7 @@ describe('setupCodex', () => {
 
   it('uses pnpm for installation when pnpm exists', async () => {
     commandExistsMock.mockResolvedValue(true)
-    const {setupCodex} = await import('../setup-codex.js')
+    const {setupCodex} = await import('../setup-codex')
 
     await setupCodex()
 

@@ -1,6 +1,6 @@
 import {log, outro} from '@clack/prompts'
 import chalk from 'chalk'
-import type {SetupResult} from './setup-tool.js'
+import type {SetupResult} from './setup-tool'
 
 export function showComplete(results: SetupResult[]) {
   log.step(chalk.bold('준비 결과'))
