@@ -5,7 +5,9 @@ import {Command} from 'commander'
 import {isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
 import {runResetEnvironment} from './commands/reset-environment'
+import {generateTemplate} from './steps/generate-template'
 import {showComplete} from './steps/complete'
+import {selectProjectDir} from './steps/select-project-dir'
 import {setupCodex} from './steps/setup-codex'
 import {setupGitHub} from './steps/setup-github'
 import type {SetupResult, SetupStep} from './steps/setup-tool'
@@ -23,7 +25,8 @@ export function createProgram() {
     .option('--skip-github', 'Skip GitHub CLI setup')
     .option('--skip-vercel', 'Skip Vercel CLI setup')
     .option('--skip-codex', 'Skip Codex CLI setup')
-    .action(async (options: {skipGithub?: boolean; skipVercel?: boolean; skipCodex?: boolean}) => {
+    .option('--project-dir <path>', 'Default project working directory')
+    .action(async (options: {skipGithub?: boolean; skipVercel?: boolean; skipCodex?: boolean; projectDir?: string}) => {
       try {
         const proceed = await showWelcome()
 
@@ -39,6 +42,15 @@ export function createProgram() {
           ...(options.skipCodex ? [] : [setupCodex]),
         ]
         const results = await runSetupSteps(steps)
+        const projectDir = await selectProjectDir({defaultDir: options.projectDir ?? '.'})
+
+        if (projectDir === null) {
+          outro(chalk.yellow('프로젝트 준비를 취소했습니다.'))
+          process.exit(0)
+          return
+        }
+
+        await generateTemplate(projectDir)
 
         showComplete(results)
       } catch (error) {
