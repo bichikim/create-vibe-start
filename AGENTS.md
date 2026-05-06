@@ -16,6 +16,10 @@ Minimum code that solves the problem. Nothing speculative.
 - TypeScript module resolution handles source imports without those extensions.
 - Keep required extensions for non-code assets, such as `.svg` and `.png`.
 
+## Branch Sync
+
+- Before starting work, pull the current working branch from its remote to make sure it is up to date.
+
 ## Dependency Installation
 
 When dependency installation is required in this project:
