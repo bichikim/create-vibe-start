@@ -58,6 +58,18 @@ pnpm dev
 pnpm build
 ```
 
+## Alpha Release Automation
+
+- Push or merge into `release/alpha` triggers `.github/workflows/alpha-release.yml`.
+- The workflow reads `package.json` version and compares it against the latest npm alpha version for `create-vibe-start`.
+- Release runs only when `package.json` is an alpha version and strictly newer than npm's latest alpha.
+- On pass, it creates `v<package.json version>` tag and a GitHub prerelease via:
+  - `gh release create ... --title "v<version>" --generate-notes --prerelease`
+- The workflow requires `RELEASE_TOKEN` repository secret (PAT or GitHub App token) for release creation so `release: published` can trigger downstream publish workflow.
+- npm publish is not executed in `alpha-release.yml`.
+- The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
+- Because prereleases have `prerelease: true`, the existing publish flow resolves npm dist-tag to `alpha`.
+
 ## MVP Flow
 
 ```txt
