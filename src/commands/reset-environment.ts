@@ -7,6 +7,7 @@ import {intro, isCancel, log, note, outro, text} from '@clack/prompts'
 import chalk from 'chalk'
 import {commandExists} from '../utils/command-exists'
 
+/** CLI 환경 초기화를 위해 실행할 외부 명령 단계입니다. */
 type CommandStep = {
   kind: 'command'
   label: string
@@ -14,23 +15,35 @@ type CommandStep = {
   args: string[]
 }
 
+/** CLI 환경 초기화를 위해 삭제할 파일 또는 폴더 단계입니다. */
 type RemoveStep = {
   kind: 'remove'
   label: string
   target: string
 }
 
+/** CLI 환경 초기화에서 수행할 수 있는 단계입니다. */
 type Step = CommandStep | RemoveStep
+/** 전역 패키지 제거를 지원하는 패키지 매니저입니다. */
 type PackageManager = 'pnpm' | 'npm'
 
+/** reset 명령 실행 옵션입니다. */
 type ResetOptions = {
   dryRun?: boolean
   yes?: boolean
 }
 
+/** 사용자별 CLI 설정 파일을 찾기 위한 홈 폴더입니다. */
 const home = homedir()
+/** 플랫폼별 설치 제거 명령과 설정 경로를 고르기 위한 Node.js 플랫폼입니다. */
 const {platform} = process
 
+/**
+ * GitHub, Vercel, Codex CLI의 설치와 인증 파일을 초기화합니다.
+ *
+ * @param options - dry-run 실행과 확인 프롬프트 생략 여부입니다.
+ * @returns 모든 단계가 성공하거나 건너뛰면 `true`, 실패한 단계가 있으면 `false`입니다.
+ */
 export async function runResetEnvironment(options: ResetOptions = {}): Promise<boolean> {
   const packageManagers = await globalPackageManagers()
   const steps: Step[] = [...githubSteps(), ...vercelSteps(packageManagers), ...codexSteps(packageManagers)]
@@ -67,6 +80,11 @@ export async function runResetEnvironment(options: ResetOptions = {}): Promise<b
   return !failed
 }
 
+/**
+ * 현재 플랫폼에서 GitHub CLI를 초기화하는 단계 목록을 만듭니다.
+ *
+ * @returns GitHub CLI 초기화 단계 목록입니다.
+ */
 function githubSteps(): Step[] {
   const steps: Step[] = [
     {
@@ -97,6 +115,11 @@ function githubSteps(): Step[] {
   return steps
 }
 
+/**
+ * 사용 가능한 전역 패키지 매니저를 감지합니다.
+ *
+ * @returns PATH에서 찾은 패키지 매니저 목록입니다.
+ */
 async function globalPackageManagers(): Promise<PackageManager[]> {
   const managers: PackageManager[] = []
 
@@ -111,6 +134,12 @@ async function globalPackageManagers(): Promise<PackageManager[]> {
   return managers
 }
 
+/**
+ * Vercel CLI 인증, 패키지, 설정 파일을 초기화하는 단계 목록을 만듭니다.
+ *
+ * @param packageManagers - 전역 패키지 제거에 사용할 수 있는 패키지 매니저입니다.
+ * @returns Vercel CLI 초기화 단계 목록입니다.
+ */
 function vercelSteps(packageManagers: PackageManager[]): Step[] {
   return [
     {
@@ -138,6 +167,11 @@ function vercelSteps(packageManagers: PackageManager[]): Step[] {
   ]
 }
 
+/**
+ * 현재 플랫폼의 Vercel CLI 설정 폴더 경로를 반환합니다.
+ *
+ * @returns Vercel CLI 설정 폴더 경로입니다.
+ */
 function vercelConfigDirectory(): string {
   if (platform === 'darwin') {
     return path.join(home, 'Library', 'Application Support', 'com.vercel.cli')
@@ -150,6 +184,11 @@ function vercelConfigDirectory(): string {
   return path.join(home, '.config', 'com.vercel.cli')
 }
 
+/**
+ * 현재 플랫폼의 Vercel CLI 캐시 폴더 경로를 반환합니다.
+ *
+ * @returns Vercel CLI 캐시 폴더 경로입니다.
+ */
 function vercelCacheDirectory(): string {
   if (platform === 'darwin') {
     return path.join(home, 'Library', 'Caches', 'com.vercel.cli')
@@ -162,6 +201,12 @@ function vercelCacheDirectory(): string {
   return path.join(home, '.cache', 'com.vercel.cli')
 }
 
+/**
+ * Codex CLI 인증, 패키지, 설정 파일을 초기화하는 단계 목록을 만듭니다.
+ *
+ * @param packageManagers - 전역 패키지 제거에 사용할 수 있는 패키지 매니저입니다.
+ * @returns Codex CLI 초기화 단계 목록입니다.
+ */
 function codexSteps(packageManagers: PackageManager[]): Step[] {
   return [
     {
@@ -179,6 +224,14 @@ function codexSteps(packageManagers: PackageManager[]): Step[] {
   ]
 }
 
+/**
+ * 감지된 패키지 매니저별 전역 패키지 제거 단계를 만듭니다.
+ *
+ * @param packageManagers - 전역 패키지 제거에 사용할 패키지 매니저 목록입니다.
+ * @param name - 사용자에게 표시할 CLI 이름입니다.
+ * @param pkg - 제거할 npm 패키지 이름입니다.
+ * @returns 패키지 매니저별 제거 명령 단계 목록입니다.
+ */
 function uninstallGlobalPackageSteps(packageManagers: PackageManager[], name: string, pkg: string): CommandStep[] {
   return packageManagers.map((packageManager) => {
     if (packageManager === 'pnpm') {
@@ -199,6 +252,13 @@ function uninstallGlobalPackageSteps(packageManagers: PackageManager[], name: st
   })
 }
 
+/**
+ * 초기화 단계를 순서대로 실행합니다.
+ *
+ * @param steps - 실행할 초기화 단계 목록입니다.
+ * @param dryRun - 실제 변경 없이 단계만 출력할지 여부입니다.
+ * @returns 각 단계의 성공 여부 목록입니다.
+ */
 async function runSteps(steps: Step[], dryRun: boolean): Promise<boolean[]> {
   return steps.reduce<Promise<boolean[]>>(async (previous, step) => {
     const results = await previous
@@ -207,6 +267,13 @@ async function runSteps(steps: Step[], dryRun: boolean): Promise<boolean[]> {
   }, Promise.resolve([]))
 }
 
+/**
+ * 단일 외부 명령 단계를 실행합니다.
+ *
+ * @param step - 실행할 명령 단계입니다.
+ * @param dryRun - 실제 실행 없이 명령만 출력할지 여부입니다.
+ * @returns 명령이 성공했으면 `true`, 실패하면 `false`입니다.
+ */
 async function runCommand(step: CommandStep, dryRun: boolean): Promise<boolean> {
   if (dryRun) {
     log.info(`[dry-run] ${step.command} ${step.args.join(' ')}`)
@@ -239,6 +306,13 @@ async function runCommand(step: CommandStep, dryRun: boolean): Promise<boolean> 
   })
 }
 
+/**
+ * 단일 파일 또는 폴더 삭제 단계를 실행합니다.
+ *
+ * @param step - 삭제할 대상 단계입니다.
+ * @param dryRun - 실제 삭제 없이 대상만 출력할지 여부입니다.
+ * @returns 대상이 없거나 삭제에 성공하면 `true`, 삭제에 실패하면 `false`입니다.
+ */
 async function removeTarget(step: RemoveStep, dryRun: boolean): Promise<boolean> {
   if (dryRun) {
     log.info(`[dry-run] rm -rf ${step.target}`)
@@ -261,6 +335,12 @@ async function removeTarget(step: RemoveStep, dryRun: boolean): Promise<boolean>
   }
 }
 
+/**
+ * 파일 시스템 대상이 존재하는지 확인합니다.
+ *
+ * @param target - 확인할 파일 또는 폴더 경로입니다.
+ * @returns 대상이 존재하면 `true`, 아니면 `false`입니다.
+ */
 async function exists(target: string): Promise<boolean> {
   try {
     await access(target, constants.F_OK)

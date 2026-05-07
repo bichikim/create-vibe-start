@@ -1,6 +1,11 @@
 import {confirm, intro, note} from '@clack/prompts'
 import chalk from 'chalk'
 
+/**
+ * 시작 안내 화면을 표시하고 사용자의 진행 여부를 확인합니다.
+ *
+ * @returns 사용자가 시작을 승인했는지 여부입니다.
+ */
 export async function showWelcome() {
   intro(chalk.cyan('create-vibe-start'))
 

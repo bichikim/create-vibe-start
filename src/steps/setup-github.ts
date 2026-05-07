@@ -1,5 +1,6 @@
 import {type SetupStep, setupTool} from './setup-tool'
 
+/** GitHub CLI 설치, 버전 확인, 로그인 상태 확인을 수행합니다. */
 export const setupGitHub: SetupStep = async () => {
   return setupTool({
     name: 'GitHub',
