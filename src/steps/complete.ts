@@ -2,6 +2,11 @@ import {log, outro} from '@clack/prompts'
 import chalk from 'chalk'
 import type {SetupResult} from './setup-tool'
 
+/**
+ * 각 준비 단계의 결과를 출력하고 최종 완료 메시지를 표시합니다.
+ *
+ * @param results - 실행한 준비 단계들의 결과입니다.
+ */
 export function showComplete(results: SetupResult[]) {
   log.step(chalk.bold('준비 결과'))
 

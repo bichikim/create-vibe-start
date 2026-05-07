@@ -3,6 +3,11 @@ import {log} from '@clack/prompts'
 import nodePlop from 'node-plop'
 import chalk from 'chalk'
 
+/**
+ * 선택된 작업 폴더에 초기 프로젝트 템플릿 파일을 생성합니다.
+ *
+ * @param projectDir - 템플릿 파일을 생성할 프로젝트 폴더입니다.
+ */
 export async function generateTemplate(projectDir: string) {
   log.step(chalk.bold('프로젝트 템플릿 생성'))
 

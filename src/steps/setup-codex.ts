@@ -1,6 +1,7 @@
 import {commandExists} from '../utils/command-exists'
 import {type SetupStep, setupTool} from './setup-tool'
 
+/** Codex CLI 설치, 버전 확인, 로그인 상태 확인을 수행합니다. */
 export const setupCodex: SetupStep = async () => {
   const installCommand = (await commandExists('pnpm'))
     ? {

@@ -2,11 +2,20 @@ import {existsSync, statSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {confirm, isCancel, log, text} from '@clack/prompts'
 
+/** 프로젝트 작업 폴더 선택에 사용할 기본값입니다. */
 type SelectProjectDirOptions = {
+  /** 상대 경로 입력을 해석할 기준 폴더입니다. */
   baseDir?: string
+  /** 프롬프트에 표시하고 빈 입력일 때 사용할 기본 폴더입니다. */
   defaultDir?: string
 }
 
+/**
+ * 프로젝트 작업 폴더를 입력받고 기존 경로 사용 여부를 확인합니다.
+ *
+ * @param options - 작업 폴더 프롬프트의 기준 폴더와 기본값입니다.
+ * @returns 선택된 절대 경로이며, 취소되면 `null`입니다.
+ */
 export async function selectProjectDir(options: SelectProjectDirOptions = {}): Promise<string | null> {
   const baseDir = options.baseDir ?? process.cwd()
   const defaultDir = options.defaultDir ?? '.'
