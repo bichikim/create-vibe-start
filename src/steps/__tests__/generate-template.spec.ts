@@ -26,7 +26,7 @@ describe('generateTemplate', () => {
     await rm(testDir, {recursive: true, force: true})
   })
 
-  it('generates a README.md file in the project directory', async () => {
+  it('uses the manifest from path when to is omitted', async () => {
     const projectDir = join(testDir, 'project')
     const {generateTemplate} = await import('../generate-template')
 
@@ -34,7 +34,7 @@ describe('generateTemplate', () => {
 
     await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toBe('# hellow vibe code\n')
     expect(logStepMock).toHaveBeenCalledWith('프로젝트 템플릿 생성')
-    expect(logMessageMock).toHaveBeenCalledWith(`README.md 생성 완료: ${projectDir}`)
+    expect(logMessageMock).toHaveBeenCalledWith(`템플릿 파일 생성 완료: ${projectDir}`)
   })
 
   it('overwrites an existing README.md file', async () => {
