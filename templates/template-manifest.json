@@ -1,0 +1,17 @@
+[
+  {
+    "from": "README.md"
+  },
+  {
+    "from": "AGENTS.md",
+    "to": "./AGENTS.md"
+  },
+  {
+    "from": "./gitignore",
+    "to": ".gitignore"
+  },
+  {
+    "from": "../.agents/skills/",
+    "to": ".agents/skills/"
+  }
+]
