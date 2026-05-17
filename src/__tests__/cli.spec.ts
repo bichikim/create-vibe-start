@@ -11,6 +11,7 @@ const setupCodexMock = vi.fn()
 const selectProjectNameMock = vi.fn()
 const selectProjectDirMock = vi.fn()
 const generateTemplateMock = vi.fn()
+const installDependenciesMock = vi.fn()
 const createGitHubRepositoryMock = vi.fn()
 const launchCodexAppMock = vi.fn()
 const showCompleteMock = vi.fn()
@@ -44,6 +45,10 @@ vi.mock('../steps/select-project-name.js', () => ({
 
 vi.mock('../steps/generate-template.js', () => ({
   generateTemplate: generateTemplateMock,
+}))
+
+vi.mock('../steps/install-dependencies.js', () => ({
+  installDependencies: installDependenciesMock,
 }))
 
 vi.mock('../steps/create-github-repository.js', () => ({
@@ -84,6 +89,7 @@ describe('CLI program', () => {
     selectProjectNameMock.mockReset().mockResolvedValue('my-app')
     selectProjectDirMock.mockReset().mockResolvedValue('/repo')
     generateTemplateMock.mockReset().mockResolvedValue(undefined)
+    installDependenciesMock.mockReset().mockResolvedValue(undefined)
     createGitHubRepositoryMock.mockReset().mockResolvedValue(undefined)
     launchCodexAppMock.mockReset().mockResolvedValue(true)
     showCompleteMock.mockReset()
@@ -108,6 +114,7 @@ describe('CLI program', () => {
     expect(selectProjectNameMock).toHaveBeenCalledOnce()
     expect(selectProjectDirMock).toHaveBeenCalledWith({defaultDir: './my-app'})
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
+    expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
     expect(confirmMock).toHaveBeenNthCalledWith(2, {
       message: 'GitHub에 저장소를 만들고 저장할까요?',
       initialValue: true,
@@ -136,6 +143,7 @@ describe('CLI program', () => {
     expect(setupVercelMock).toHaveBeenCalledOnce()
     expect(setupCodexMock).not.toHaveBeenCalled()
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
+    expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
     expect(launchCodexAppMock).not.toHaveBeenCalled()
     expect(showCompleteMock).toHaveBeenCalledWith([{name: 'Vercel', status: 'ready', message: 'ok'}])
@@ -148,6 +156,7 @@ describe('CLI program', () => {
 
     expect(selectProjectDirMock).toHaveBeenCalledWith({defaultDir: './test'})
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
+    expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
   })
 
   it('stops after setup when project creation is declined', async () => {
@@ -159,6 +168,7 @@ describe('CLI program', () => {
     expect(selectProjectNameMock).not.toHaveBeenCalled()
     expect(selectProjectDirMock).not.toHaveBeenCalled()
     expect(generateTemplateMock).not.toHaveBeenCalled()
+    expect(installDependenciesMock).not.toHaveBeenCalled()
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
     expect(launchCodexAppMock).not.toHaveBeenCalled()
     expect(showCompleteMock).toHaveBeenCalledWith([
@@ -175,6 +185,7 @@ describe('CLI program', () => {
     await runCli(['node', 'create-vibe-start'])
 
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
+    expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
     expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'})
     expect(showCompleteMock).toHaveBeenCalledWith([
@@ -204,6 +215,7 @@ describe('CLI program', () => {
     expect(outroMock).toHaveBeenCalledWith('프로젝트 준비를 취소했습니다.')
     expect(selectProjectDirMock).not.toHaveBeenCalled()
     expect(generateTemplateMock).not.toHaveBeenCalled()
+    expect(installDependenciesMock).not.toHaveBeenCalled()
     expect(showCompleteMock).not.toHaveBeenCalled()
     expect(exitSpy).toHaveBeenCalledWith(0)
   })
@@ -217,6 +229,7 @@ describe('CLI program', () => {
 
     expect(outroMock).toHaveBeenCalledWith('프로젝트 준비를 취소했습니다.')
     expect(generateTemplateMock).not.toHaveBeenCalled()
+    expect(installDependenciesMock).not.toHaveBeenCalled()
     expect(showCompleteMock).not.toHaveBeenCalled()
     expect(exitSpy).toHaveBeenCalledWith(0)
   })
@@ -232,6 +245,7 @@ describe('CLI program', () => {
     expect(setupGitHubMock).not.toHaveBeenCalled()
     expect(selectProjectDirMock).not.toHaveBeenCalled()
     expect(generateTemplateMock).not.toHaveBeenCalled()
+    expect(installDependenciesMock).not.toHaveBeenCalled()
     expect(exitSpy).toHaveBeenCalledWith(0)
   })
 
@@ -247,6 +261,7 @@ describe('CLI program', () => {
     expect(setupCodexMock).not.toHaveBeenCalled()
     expect(selectProjectDirMock).not.toHaveBeenCalled()
     expect(generateTemplateMock).not.toHaveBeenCalled()
+    expect(installDependenciesMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(0)
   })
 
