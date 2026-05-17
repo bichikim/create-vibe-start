@@ -50,8 +50,8 @@ export function withCodexAppReadyMessage(results: SetupResult[], launched: boole
   }
 
   return results.map((result) =>
-    result.name === 'Codex' && result.status === 'ready'
+    (result.name === 'Codex' && result.status === 'ready'
       ? {...result, message: CODEX_READY_WITH_APP_MESSAGE}
-      : result,
+      : result),
   )
 }

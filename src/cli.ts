@@ -7,6 +7,7 @@ import chalk from 'chalk'
 import {runResetEnvironment} from './commands/reset-environment'
 import {createGitHubRepository} from './steps/create-github-repository'
 import {generateTemplate} from './steps/generate-template'
+import {installDependencies} from './steps/install-dependencies'
 import {launchCodexApp, withCodexAppReadyMessage} from './steps/launch-codex-app'
 import {showComplete} from './steps/complete'
 import {selectProjectDir} from './steps/select-project-dir'
@@ -79,6 +80,7 @@ export function createProgram() {
         }
 
         await generateTemplate(projectDir, {projectName})
+        await installDependencies(projectDir)
 
         const githubResult = results.find((result) => result.name === 'GitHub')
         if (!options.skipGithub && githubResult?.status === 'ready') {
