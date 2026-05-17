@@ -11,7 +11,7 @@ export async function showWelcome() {
 
   note(
     [
-      'GitHub, Vercel, Codex CLI 준비 상태를 순서대로 확인합니다.',
+      'GitHub, Vercel, Codex CLI 및 Codex 앱 준비 상태를 순서대로 확인합니다.',
       '설치와 로그인은 각 CLI의 공식 흐름에 위임합니다.',
       '비밀번호나 토큰은 이 도구가 직접 입력받지 않습니다.',
     ].join('\n'),

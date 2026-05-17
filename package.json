@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts --project-dir ./.test-project",
+    "dev": "tsx src/cli.ts --project-dir ../.test-project",
     "build": "vite build",
     "format": "oxfmt",
     "lint": "oxlint",
@@ -34,7 +34,6 @@
     "execa": "^9.6.0",
     "node-plop": "^0.32.3",
     "ora": "^9.0.0",
-    "plop": "^4.0.4",
     "which": "^5.0.0"
   },
   "devDependencies": {
@@ -54,5 +53,5 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@11.1.2"
 }

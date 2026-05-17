@@ -1,7 +1,12 @@
 node_modules
 dist
+.output
 .DS_Store
 *.log
+.env
+*.db
+*.db-shm
+*.db-wal
 
 .pnpm-store
 .history

@@ -17,8 +17,13 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: 'src/templates/**/*',
+          src: 'templates/**/{*,.*}',
           dest: 'templates',
+          rename: {stripBase: 1},
+        },
+        {
+          src: '.agents/skills/**/{*,.*}',
+          dest: '.agents/skills',
           rename: {stripBase: 2},
         },
       ],

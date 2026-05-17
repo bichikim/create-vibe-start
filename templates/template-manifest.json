@@ -1,17 +1,47 @@
 [
   {
-    "from": "README.md"
+    "from": "package.json",
+    "template": true
   },
   {
-    "from": "AGENTS.md",
-    "to": "./AGENTS.md"
+    "from": "pnpm-workspace.yaml"
   },
   {
-    "from": "./gitignore",
+    "from": "tsconfig.json"
+  },
+  {
+    "from": ".env.example"
+  },
+  {
+    "from": "README.md",
+    "template": true
+  },
+  {
+    "from": "AGENTS.md"
+  },
+  {
+    "from": ".gitignore",
     "to": ".gitignore"
   },
   {
     "from": "../.agents/skills/",
     "to": ".agents/skills/"
+  },
+  {
+    "from": "apps/",
+    "to": "apps/"
+  },
+  {
+    "from": "apps/main-app/package.json",
+    "to": "apps/main-app/package.json",
+    "template": true
+  },
+  {
+    "from": "../.oxfmtrc.json",
+    "to": ".oxfmtrc.json"
+  },
+  {
+    "from": "../oxlint.config.ts",
+    "to": "oxlint.config.ts"
   }
 ]

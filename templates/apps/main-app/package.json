@@ -1,0 +1,44 @@
+{
+  "name": "@{{projectName}}/main-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "node .output/server/index.mjs",
+    "lint": "oxlint .",
+    "format": "oxfmt .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@libsql/client": "catalog:",
+    "@pinia/colada": "catalog:",
+    "@orpc/client": "catalog:",
+    "@orpc/server": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "class-variance-authority": "catalog:",
+    "drizzle-orm": "catalog:",
+    "h3": "catalog:",
+    "nitro": "catalog:",
+    "pinia": "catalog:",
+    "reka-ui": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

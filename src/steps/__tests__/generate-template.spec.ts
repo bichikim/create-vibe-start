@@ -32,7 +32,52 @@ describe('generateTemplate', () => {
 
     await generateTemplate(projectDir)
 
-    await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toBe('# hellow vibe code\n')
+    await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toContain('Nitro, Vue, oRPC, Zod, Drizzle')
+    await expect(readFile(join(projectDir, 'package.json'), 'utf8')).resolves.toContain('@vibe-start-app/main-app')
+    await expect(readFile(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')).resolves.toContain('catalog:')
+    await expect(readFile(join(projectDir, '.env.example'), 'utf8')).resolves.toContain(
+      'DATABASE_URL=file:./data/app.db',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"drizzle-orm": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"tailwindcss": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"class-variance-authority": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"@pinia/colada": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"pinia": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"reka-ui": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
+      '"vue-router": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/App.vue'), 'utf8')).resolves.toContain(
+      '<RouterView />',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/views/NotesView.vue'), 'utf8')).resolves.toContain(
+      "import {useMutation, useQuery, useQueryCache} from '@pinia/colada'",
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/views/NotesView.vue'), 'utf8')).resolves.toContain(
+      "import AppDialog from '../components/ui/AppDialog.vue'",
+    )
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/src/components/ui/AppDialog.vue'), 'utf8'),
+    ).resolves.toContain('{{ title }}')
+    await expect(readFile(join(projectDir, 'apps/main-app/vite.config.ts'), 'utf8')).resolves.toContain('tailwindcss')
+    await expect(readFile(join(projectDir, 'apps/main-app/src/style.css'), 'utf8')).resolves.toContain(
+      '@import "tailwindcss";',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/drizzle.config.ts'), 'utf8')).resolves.toContain(
+      "dialect: 'turso'",
+    )
     expect(logStepMock).toHaveBeenCalledWith('프로젝트 템플릿 생성')
     expect(logMessageMock).toHaveBeenCalledWith(`템플릿 파일 생성 완료: ${projectDir}`)
   })
@@ -45,6 +90,28 @@ describe('generateTemplate', () => {
 
     await generateTemplate(projectDir)
 
-    await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toBe('# hellow vibe code\n')
+    await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toContain('vibe-start-app')
+  })
+
+  it('applies the selected project name to README and package files', async () => {
+    const projectDir = join(testDir, 'project')
+    const {generateTemplate} = await import('../generate-template')
+
+    await generateTemplate(projectDir, {projectName: 'my-app'})
+
+    const readme = await readFile(join(projectDir, 'README.md'), 'utf8')
+    const rootPackageJson = JSON.parse(await readFile(join(projectDir, 'package.json'), 'utf8')) as {
+      name: string
+      scripts: Record<string, string>
+    }
+    const appPackageJson = JSON.parse(await readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')) as {
+      name: string
+    }
+
+    expect(readme.startsWith('# my-app\n')).toBe(true)
+    expect(readme).toContain('pnpm --filter @my-app/main-app db:push')
+    expect(rootPackageJson.name).toBe('my-app')
+    expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
+    expect(appPackageJson.name).toBe('@my-app/main-app')
   })
 })

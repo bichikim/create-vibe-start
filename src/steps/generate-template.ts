@@ -1,4 +1,4 @@
-import {readFile, stat} from 'node:fs/promises'
+import {cp, readFile, stat} from 'node:fs/promises'
 import {join} from 'node:path'
 import {log} from '@clack/prompts'
 import nodePlop from 'node-plop'
@@ -7,12 +7,14 @@ import chalk from 'chalk'
 type TemplateFile = {
   from: string
   to?: string
+  template?: boolean
 }
 
 export type Answers = Record<string, unknown>
 
 const defaultTemplateDir = 'templates'
 const defaultManifestFileName = 'template-manifest.json'
+const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
 
 /**
  * 선택된 작업 폴더에 초기 프로젝트 템플릿 파일을 생성합니다.
@@ -32,8 +34,19 @@ export async function generateTemplate(
 
   const manifestPath = join(templateDir, manifestFileName)
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as TemplateFile[]
+  await Promise.all(
+    manifest
+      .filter((file) => !file.template)
+      .map((file) => {
+        const source = join(templateDir, file.from)
+        const destination = join(projectDir, file.to ?? file.from)
+
+        return cp(source, destination, {recursive: true, force: true})
+      }),
+  )
+
   const actions = await Promise.all(
-    manifest.map(async (file) => {
+    manifest.filter((file) => file.template).map(async (file) => {
       const source = join(templateDir, file.from)
       const isDirectory = await stat(source).then((info) => info.isDirectory(), () => false)
       if (isDirectory) {
@@ -61,7 +74,7 @@ export async function generateTemplate(
     prompts: [],
     actions,
   })
-  const result = await generator.runActions(answers)
+  const result = await generator.runActions({...defaultAnswers, ...answers})
 
   if (result.failures.length > 0) {
     throw new Error(result.failures.map((failure) => failure.error || failure.message).join('\n'))

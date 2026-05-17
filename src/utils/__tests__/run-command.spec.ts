@@ -41,4 +41,16 @@ describe('run-command utilities', () => {
       preferLocal: false,
     })
   })
+
+  it('runs commands from a working directory when provided', async () => {
+    const {runCommand} = await import('../run-command')
+
+    await runCommand('git', ['init'], 'git init', '/repo')
+
+    expect(execaMock).toHaveBeenCalledWith('git', ['init'], {
+      stdio: 'inherit',
+      preferLocal: false,
+      cwd: '/repo',
+    })
+  })
 })

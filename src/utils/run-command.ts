@@ -8,11 +8,12 @@ import {log} from '@clack/prompts'
  * @param args - 명령에 전달할 인수 목록입니다.
  * @param label - 사용자에게 표시할 실행 설명입니다.
  */
-export async function runCommand(command: string, args: string[], label: string) {
+export async function runCommand(command: string, args: string[], label: string, cwd?: string) {
   log.info(`실행: ${label}`)
   await execa(command, args, {
     stdio: 'inherit',
     preferLocal: false,
+    ...(cwd ? {cwd} : {}),
   })
 }
 
@@ -22,9 +23,10 @@ export async function runCommand(command: string, args: string[], label: string)
  * @param command - 실행할 명령입니다.
  * @param args - 명령에 전달할 인수 목록입니다.
  */
-export async function runCommandQuietly(command: string, args: string[]) {
+export async function runCommandQuietly(command: string, args: string[], cwd?: string) {
   await execa(command, args, {
     stdio: 'pipe',
     preferLocal: false,
+    ...(cwd ? {cwd} : {}),
   })
 }

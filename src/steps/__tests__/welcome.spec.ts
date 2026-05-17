@@ -25,7 +25,7 @@ describe('showWelcome', () => {
 
     expect(introMock).toHaveBeenCalledWith('create-vibe-start')
     expect(noteMock).toHaveBeenCalledWith(
-      expect.stringContaining('GitHub, Vercel, Codex CLI'),
+      expect.stringContaining('GitHub, Vercel, Codex CLI 및 Codex 앱'),
       'AI 웹앱 개발 시작 전 준비',
     )
     expect(confirmMock).toHaveBeenCalledWith({

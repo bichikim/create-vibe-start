@@ -2,12 +2,15 @@
 
 import {createRequire} from 'node:module'
 import {Command} from 'commander'
-import {isCancel, outro} from '@clack/prompts'
+import {confirm, isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
 import {runResetEnvironment} from './commands/reset-environment'
+import {createGitHubRepository} from './steps/create-github-repository'
 import {generateTemplate} from './steps/generate-template'
+import {launchCodexApp, withCodexAppReadyMessage} from './steps/launch-codex-app'
 import {showComplete} from './steps/complete'
 import {selectProjectDir} from './steps/select-project-dir'
+import {selectProjectName} from './steps/select-project-name'
 import {setupCodex} from './steps/setup-codex'
 import {setupGitHub} from './steps/setup-github'
 import type {SetupResult, SetupStep} from './steps/setup-tool'
@@ -49,7 +52,25 @@ export function createProgram() {
           ...(options.skipCodex ? [] : [setupCodex]),
         ]
         const results = await runSetupSteps(steps)
-        const projectDir = await selectProjectDir({defaultDir: options.projectDir ?? '.'})
+        const shouldCreateProject = await confirm({
+          message: '새 프로젝트를 만들까요?',
+          initialValue: true,
+        })
+
+        if (isCancel(shouldCreateProject) || !shouldCreateProject) {
+          showComplete(results)
+          return
+        }
+
+        const projectName = await selectProjectName()
+
+        if (projectName === null) {
+          outro(chalk.yellow('프로젝트 준비를 취소했습니다.'))
+          process.exit(0)
+          return
+        }
+
+        const projectDir = await selectProjectDir({defaultDir: options.projectDir ?? `./${projectName}`})
 
         if (projectDir === null) {
           outro(chalk.yellow('프로젝트 준비를 취소했습니다.'))
@@ -57,9 +78,28 @@ export function createProgram() {
           return
         }
 
-        await generateTemplate(projectDir)
+        await generateTemplate(projectDir, {projectName})
 
-        showComplete(results)
+        const githubResult = results.find((result) => result.name === 'GitHub')
+        if (!options.skipGithub && githubResult?.status === 'ready') {
+          const shouldCreateGitHubRepository = await confirm({
+            message: 'GitHub에 저장소를 만들고 저장할까요?',
+            initialValue: true,
+          })
+
+          if (!isCancel(shouldCreateGitHubRepository) && shouldCreateGitHubRepository) {
+            await createGitHubRepository(projectDir, projectName)
+          }
+        }
+
+        let finalResults = results
+        if (!options.skipCodex) {
+          const codexResult = results.find((result) => result.name === 'Codex')
+          const launched = await launchCodexApp(projectDir, codexResult)
+          finalResults = withCodexAppReadyMessage(results, launched)
+        }
+
+        showComplete(finalResults)
       } catch (error) {
         outro(chalk.red(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'))
         process.exit(1)
