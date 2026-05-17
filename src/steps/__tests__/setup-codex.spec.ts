@@ -1,7 +1,14 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 const setupToolMock = vi.fn()
 const commandExistsMock = vi.fn()
+const runCommandMock = vi.fn()
+const logWarnMock = vi.fn()
+let homeDir: string
+let originalHome: string | undefined
 
 vi.mock('../setup-tool.js', () => ({
   setupTool: setupToolMock,
@@ -11,11 +18,26 @@ vi.mock('../../utils/command-exists.js', () => ({
   commandExists: commandExistsMock,
 }))
 
+vi.mock('../../utils/run-command.js', () => ({
+  runCommand: runCommandMock,
+}))
+
+vi.mock('@clack/prompts', () => ({
+  log: {
+    warn: logWarnMock,
+  },
+}))
+
 describe('setupCodex', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules()
-    setupToolMock.mockReset().mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
+    originalHome = process.env.HOME
+    homeDir = await mkdtemp(path.join(os.tmpdir(), 'setup-codex-'))
+    process.env.HOME = homeDir
+    setupToolMock.mockReset().mockResolvedValue({name: 'Codex', status: 'skipped', message: 'ok'})
     commandExistsMock.mockReset().mockResolvedValue(false)
+    runCommandMock.mockReset().mockResolvedValue(undefined)
+    logWarnMock.mockReset()
   })
 
   it('configures Codex CLI setup', async () => {
@@ -78,5 +100,46 @@ describe('setupCodex', () => {
         },
       }),
     )
+  })
+
+  it('adds the official marketplace and enables default plugins when Codex is ready', async () => {
+    setupToolMock.mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
+    const {setupCodex} = await import('../setup-codex')
+
+    await setupCodex()
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      'codex',
+      ['plugin', 'marketplace', 'add', 'openai/plugins'],
+      'codex plugin marketplace add openai/plugins',
+    )
+
+    const config = await readFile(path.join(homeDir, '.codex', 'config.toml'), 'utf8')
+    expect(config).toContain('[plugins."github@openai-curated"]\nenabled = true')
+    expect(config).toContain('[plugins."vercel@openai-curated"]\nenabled = true')
+    expect(config).toContain('[plugins."openai-developers@openai-curated"]\nenabled = true')
+    expect(config).toContain('[plugins."build-web-apps@openai-curated"]\nenabled = true')
+  })
+
+  it('does not duplicate existing plugin config blocks', async () => {
+    const configPath = path.join(homeDir, '.codex', 'config.toml')
+    await mkdir(path.dirname(configPath), {recursive: true})
+    await writeFile(configPath, '[plugins."github@openai-curated"]\nenabled = true\n')
+    const {enableDefaultPlugins} = await import('../setup-codex')
+
+    await enableDefaultPlugins(configPath)
+
+    const config = await readFile(configPath, 'utf8')
+    expect(config.match(/\[plugins\."github@openai-curated"\]/g)).toHaveLength(1)
+    expect(config).toContain('[plugins."vercel@openai-curated"]\nenabled = true')
+  })
+
+  afterEach(async () => {
+    if (originalHome === undefined) {
+      delete process.env.HOME
+    } else {
+      process.env.HOME = originalHome
+    }
+    await rm(homeDir, {recursive: true, force: true})
   })
 })

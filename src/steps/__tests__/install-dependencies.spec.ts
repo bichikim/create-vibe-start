@@ -21,7 +21,7 @@ describe('installDependencies', () => {
     commandExistsMock.mockResolvedValue(true)
     const {installDependencies} = await import('../install-dependencies')
 
-    await installDependencies('/repo')
+    await expect(installDependencies('/repo')).resolves.toBe(true)
 
     expect(commandExistsMock).toHaveBeenCalledWith('pnpm')
     expect(runCommandMock).toHaveBeenCalledWith('pnpm', ['i'], 'pnpm i', '/repo')
@@ -31,7 +31,7 @@ describe('installDependencies', () => {
     commandExistsMock.mockResolvedValue(false)
     const {installDependencies} = await import('../install-dependencies')
 
-    await installDependencies('/repo')
+    await expect(installDependencies('/repo')).resolves.toBe(true)
 
     expect(commandExistsMock).toHaveBeenCalledWith('pnpm')
     expect(runCommandMock).toHaveBeenCalledWith('npm', ['i'], 'npm i', '/repo')

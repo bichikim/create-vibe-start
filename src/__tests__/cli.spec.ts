@@ -89,7 +89,7 @@ describe('CLI program', () => {
     selectProjectNameMock.mockReset().mockResolvedValue('my-app')
     selectProjectDirMock.mockReset().mockResolvedValue('/repo')
     generateTemplateMock.mockReset().mockResolvedValue(undefined)
-    installDependenciesMock.mockReset().mockResolvedValue(undefined)
+    installDependenciesMock.mockReset().mockResolvedValue(true)
     createGitHubRepositoryMock.mockReset().mockResolvedValue(undefined)
     launchCodexAppMock.mockReset().mockResolvedValue(true)
     showCompleteMock.mockReset()
@@ -120,7 +120,7 @@ describe('CLI program', () => {
       initialValue: true,
     })
     expect(createGitHubRepositoryMock).toHaveBeenCalledWith('/repo', 'my-app')
-    expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'})
+    expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)
     expect(showCompleteMock).toHaveBeenCalledWith([
       {name: 'GitHub', status: 'ready', message: 'ok'},
       {name: 'Vercel', status: 'ready', message: 'ok'},
@@ -187,7 +187,7 @@ describe('CLI program', () => {
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
     expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
-    expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'})
+    expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)
     expect(showCompleteMock).toHaveBeenCalledWith([
       {name: 'GitHub', status: 'ready', message: 'ok'},
       {name: 'Vercel', status: 'ready', message: 'ok'},

@@ -80,7 +80,7 @@ export function createProgram() {
         }
 
         await generateTemplate(projectDir, {projectName})
-        await installDependencies(projectDir)
+        const dependenciesInstalled = await installDependencies(projectDir)
 
         const githubResult = results.find((result) => result.name === 'GitHub')
         if (!options.skipGithub && githubResult?.status === 'ready') {
@@ -97,7 +97,7 @@ export function createProgram() {
         let finalResults = results
         if (!options.skipCodex) {
           const codexResult = results.find((result) => result.name === 'Codex')
-          const launched = await launchCodexApp(projectDir, codexResult)
+          const launched = await launchCodexApp(projectDir, codexResult, dependenciesInstalled)
           finalResults = withCodexAppReadyMessage(results, launched)
         }
 

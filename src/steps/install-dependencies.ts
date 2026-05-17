@@ -6,11 +6,12 @@ import {runCommand} from '../utils/run-command'
  *
  * @param projectDir - 의존성을 설치할 프로젝트 폴더입니다.
  */
-export async function installDependencies(projectDir: string) {
+export async function installDependencies(projectDir: string): Promise<boolean> {
   if (await commandExists('pnpm')) {
     await runCommand('pnpm', ['i'], 'pnpm i', projectDir)
-    return
+    return true
   }
 
   await runCommand('npm', ['i'], 'npm i', projectDir)
+  return true
 }
