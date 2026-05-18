@@ -75,7 +75,7 @@ async function createVercelProject(projectName: string, githubRepository: string
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      framework: 'nitro',
+      framework: 'vite',
       gitRepository: {
         repo: githubRepository,
         type: 'github',

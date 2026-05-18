@@ -53,7 +53,7 @@ describe('deployVercelProject', () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        framework: 'nitro',
+        framework: 'vite',
         gitRepository: {
           repo: 'bichikim/my-app',
           type: 'github',
