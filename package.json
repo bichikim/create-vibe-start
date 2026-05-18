@@ -1,6 +1,6 @@
 {
   "name": "create-vibe-start",
-  "version": "0.1.1-alpha.3",
+  "version": "0.1.2-alpha.0",
   "description": "Interactive CLI onboarding for preparing GitHub, Vercel, and Codex accounts.",
   "repository": {
     "type": "git",
@@ -14,15 +14,15 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts --project-dir ../.test-project",
+    "dev": "tsx src/cli.ts",
     "build": "vite build",
     "format": "oxfmt",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "reset:environment": "tsx src/cli.ts reset",
     "start": "node dist/cli.js",
-    "version:alpha": "pnpm version prerelease --preid=alpha",
-    "version:latest": "pnpm version patch",
+    "version:alpha": "pnpm version prerelease --preid=alpha --no-git-tag-version",
+    "version:latest": "pnpm version patch --no-git-tag-version",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest"
