@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {log} from '@clack/prompts'
 import {commandExists} from '../utils/command-exists'
-import {runCommand} from '../utils/run-command'
+import {runCommand, runCommandQuietly} from '../utils/run-command'
 import {type SetupStep, setupTool} from './setup-tool'
 
 const defaultPlugins = [
@@ -50,14 +50,26 @@ export const setupCodex: SetupStep = async () => {
 /** Codex 공식 플러그인 마켓플레이스와 기본 플러그인을 준비합니다. */
 async function setupCodexPlugins() {
   try {
-    await runCommand(
-      'codex',
-      ['plugin', 'marketplace', 'add', 'openai/plugins'],
-      'codex plugin marketplace add openai/plugins',
-    )
+    if (!(await hasOpenAiMarketplace())) {
+      await runCommand(
+        'codex',
+        ['plugin', 'marketplace', 'add', 'openai/plugins'],
+        'codex plugin marketplace add openai/plugins',
+      )
+    }
     await enableDefaultPlugins()
   } catch (error) {
     log.warn(`Codex 기본 플러그인 설치 실패: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+async function hasOpenAiMarketplace() {
+  try {
+    const result = await runCommandQuietly('codex', ['plugin', 'marketplace', 'list'])
+    const output = `${result.stdout}\n${result.stderr}`
+    return output.includes('openai-curated') || output.includes('openai/plugins')
+  } catch {
+    return false
   }
 }
 
