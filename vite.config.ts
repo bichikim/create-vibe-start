@@ -26,6 +26,14 @@ export default defineConfig({
           dest: '.agents/skills',
           rename: {stripBase: 2},
         },
+        {
+          src: 'oxlint.config.ts',
+          dest: './',
+        },
+        {
+          src: '.oxfmtrc.json',
+          dest: './',
+        },
       ],
     }),
   ],
