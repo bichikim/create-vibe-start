@@ -1,6 +1,6 @@
 {
   "name": "create-vibe-start",
-  "version": "0.1.1",
+  "version": "0.1.2-alpha.0",
   "description": "Interactive CLI onboarding for preparing GitHub, Vercel, and Codex accounts.",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts --project-dir ../.test-project",
+    "dev": "tsx src/cli.ts",
     "build": "vite build",
     "format": "oxfmt",
     "lint": "oxlint",

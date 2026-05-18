@@ -13,6 +13,14 @@ vi.mock('@clack/prompts', () => ({
   },
 }))
 
+describe('resolveDefaultTemplateDir', () => {
+  it('uses repo-root templates in development', async () => {
+    const {resolveDefaultTemplateDir} = await import('../generate-template')
+
+    expect(resolveDefaultTemplateDir()).toBe('templates')
+  })
+})
+
 describe('generateTemplate', () => {
   let testDir: string
 
