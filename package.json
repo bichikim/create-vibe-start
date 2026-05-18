@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts --project-dir ../.test-project",
+    "dev": "tsx src/cli.ts",
     "build": "vite build",
     "format": "oxfmt",
     "lint": "oxlint",

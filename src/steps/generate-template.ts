@@ -1,5 +1,6 @@
 import {cp, readFile, stat} from 'node:fs/promises'
-import {join} from 'node:path'
+import {dirname, join} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {log} from '@clack/prompts'
 import nodePlop from 'node-plop'
 import chalk from 'chalk'
@@ -12,9 +13,16 @@ type TemplateFile = {
 
 export type Answers = Record<string, unknown>
 
-const defaultTemplateDir = 'templates'
 const defaultManifestFileName = 'template-manifest.json'
 const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
+
+/** production 빌드(import.meta.env.PROD)는 패키지 옆 dist/templates, dev/test는 repo 루트 templates를 사용합니다. */
+export function resolveDefaultTemplateDir(moduleUrl: string = import.meta.url): string {
+  if (import.meta.env.PROD) {
+    return join(dirname(fileURLToPath(moduleUrl)), 'templates')
+  }
+  return 'templates'
+}
 
 /**
  * 선택된 작업 폴더에 초기 프로젝트 템플릿 파일을 생성합니다.
@@ -27,7 +35,7 @@ const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
 export async function generateTemplate(
   projectDir: string,
   answers: Answers = {},
-  templateDir: string = defaultTemplateDir,
+  templateDir: string = resolveDefaultTemplateDir(),
   manifestFileName: string = defaultManifestFileName,
 ) {
   log.step(chalk.bold('프로젝트 템플릿 생성'))
