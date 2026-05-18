@@ -22,9 +22,33 @@ export async function deployVercelProject(projectDir: string, projectName: strin
 
   const project = await createVercelProject(projectName, githubRepository)
   await writeVercelProjectLink(projectDir, project)
+  await connectTursoDatabase(projectDir, projectName)
   await runCommand('vercel', ['--prod'], 'vercel --prod', projectDir)
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
+}
+
+/** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */
+async function connectTursoDatabase(projectDir: string, projectName: string) {
+  await runCommand(
+    'vercel',
+    [
+      'integration',
+      'add',
+      'tursocloud/database',
+      '--name',
+      projectName,
+      '--metadata',
+      'region=iad1',
+      '--plan',
+      'starter',
+      '--environment',
+      'production',
+      '--no-env-pull',
+    ],
+    'vercel integration add tursocloud/database',
+    projectDir,
+  )
 }
 
 /** Vercel API 토큰을 환경 변수 또는 Vercel CLI 인증 파일에서 읽습니다. */

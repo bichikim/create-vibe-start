@@ -67,8 +67,8 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 
 ### Database
 
-- Local SQLite-compatible data lives at `apps/main-app/data/app.db` via `DATABASE_URL=file:./data/app.db`.
-- Vercel production uses Turso/libSQL with `DATABASE_URL=libsql://...` and `TURSO_AUTH_TOKEN`.
+- Local SQLite-compatible data lives at `apps/main-app/data/app.db` via `TURSO_DATABASE_URL=file:./data/app.db`.
+- Vercel production uses Turso/libSQL with `TURSO_DATABASE_URL=libsql://...` and `TURSO_AUTH_TOKEN`.
 - Use `drizzle-orm` + `drizzle-kit`. Schema in `apps/main-app/server/db/schema.ts`, migrations in `apps/main-app/drizzle/`.
 - Run `pnpm --filter @vibe-start/main-app db:generate`, `db:migrate`, or `db:push` for schema changes.
 
@@ -98,4 +98,4 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 
 - `apps/main-app` → Vercel.
 - Set Vercel project root to `apps/main-app` or use equivalent build settings.
-- Set `DATABASE_URL` and `TURSO_AUTH_TOKEN` in Vercel environment variables.
+- The Vercel deployment flow provisions Turso through the Marketplace with the `starter` plan in `iad1` so it automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.

@@ -36,7 +36,7 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'package.json'), 'utf8')).resolves.toContain('@vibe-start-app/main-app')
     await expect(readFile(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')).resolves.toContain('catalog:')
     await expect(readFile(join(projectDir, '.env.example'), 'utf8')).resolves.toContain(
-      'DATABASE_URL=file:./data/app.db',
+      'TURSO_DATABASE_URL=file:./data/app.db',
     )
     await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
       '"drizzle-orm": "catalog:"',

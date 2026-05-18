@@ -67,7 +67,27 @@ describe('deployVercelProject', () => {
       '/repo/my-app/.vercel/project.json',
       `${JSON.stringify({orgId: 'team_123', projectId: 'prj_123'}, null, 2)}\n`,
     )
-    expect(runCommandMock).toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      1,
+      'vercel',
+      [
+        'integration',
+        'add',
+        'tursocloud/database',
+        '--name',
+        'my-app',
+        '--metadata',
+        'region=iad1',
+        '--plan',
+        'starter',
+        '--environment',
+        'production',
+        '--no-env-pull',
+      ],
+      'vercel integration add tursocloud/database',
+      '/repo/my-app',
+    )
+    expect(runCommandMock).toHaveBeenNthCalledWith(2, 'vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
     expect(logStepMock).toHaveBeenCalledWith('Vercel 배포')
     expect(logMessageMock).toHaveBeenCalledWith('Vercel 배포 완료: my-app')
   })
