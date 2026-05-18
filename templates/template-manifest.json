@@ -20,7 +20,7 @@
     "from": "AGENTS.md"
   },
   {
-    "from": ".gitignore",
+    "from": "gitignore",
     "to": ".gitignore"
   },
   {
