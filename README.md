@@ -50,6 +50,24 @@ Show reset command options:
 create-vibe-start reset --help
 ```
 
+Reset local CLI installs and auth/config files:
+
+```bash
+create-vibe-start reset
+```
+
+Preview reset steps without changing files:
+
+```bash
+create-vibe-start reset --dry-run --yes
+```
+
+The reset command covers GitHub CLI, Vercel CLI, and Codex CLI setup. It removes local auth/config files and attempts to uninstall globally installed Vercel and Codex packages through detected package managers.
+
+## Generated Project Template
+
+After the onboarding checks, the CLI asks for a project directory and writes starter files from `src/templates/template-manifest.json`. The current template creates a project `README.md`.
+
 ## Development
 
 ```bash

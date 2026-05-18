@@ -4,12 +4,14 @@ import {commandExists} from '../utils/command-exists'
 import {detectPlatform} from '../utils/detect-platform'
 import {runCommand, runCommandQuietly} from '../utils/run-command'
 
+/** 특정 운영체제에서 CLI를 설치하기 위해 실행할 명령입니다. */
 type PlatformCommand = {
   command: string
   args: string[]
   label: string
 }
 
+/** 공통 CLI 준비 흐름에 필요한 도구별 설정입니다. */
 type SetupToolOptions = {
   name: string
   command: string
@@ -21,14 +23,22 @@ type SetupToolOptions = {
   install: Record<'macos' | 'linux' | 'windows', PlatformCommand>
 }
 
+/** CLI 준비 단계가 사용자에게 보고할 최종 상태입니다. */
 export type SetupResult = {
   name: string
   status: 'ready' | 'skipped' | 'failed'
   message: string
 }
 
+/** 단일 CLI 준비 작업을 실행하는 함수입니다. */
 export type SetupStep = () => Promise<SetupResult>
 
+/**
+ * CLI 존재 여부, 버전 확인, 인증 상태를 공통 순서로 점검합니다.
+ *
+ * @param options - 준비할 CLI의 명령과 설치, 인증 설정입니다.
+ * @returns CLI 준비 결과입니다.
+ */
 export async function setupTool(options: SetupToolOptions): Promise<SetupResult> {
   log.step(chalk.bold(`${options.name} 준비`))
 
@@ -119,6 +129,12 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
       }
 }
 
+/**
+ * 현재 플랫폼에 맞는 설치 명령을 안내하고 사용자가 승인하면 실행합니다.
+ *
+ * @param options - 설치 안내에 사용할 CLI 설정입니다.
+ * @returns 설치를 시도해 성공했으면 `true`, 건너뛰거나 실패하면 `false`입니다.
+ */
 async function offerInstall(options: SetupToolOptions): Promise<boolean> {
   const platform = detectPlatform()
   const installCommand = options.install[platform]
@@ -155,6 +171,12 @@ async function offerInstall(options: SetupToolOptions): Promise<boolean> {
   }
 }
 
+/**
+ * 도구별 인증 확인 명령을 실행해 로그인 상태인지 확인합니다.
+ *
+ * @param options - 인증 확인 명령을 포함한 CLI 설정입니다.
+ * @returns 인증되어 있으면 `true`, 아니면 `false`입니다.
+ */
 async function isAuthenticated(options: SetupToolOptions): Promise<boolean> {
   try {
     await runCommandQuietly(options.command, options.authCheckArgs)
@@ -164,6 +186,12 @@ async function isAuthenticated(options: SetupToolOptions): Promise<boolean> {
   }
 }
 
+/**
+ * 알 수 없는 오류 값을 사용자에게 보여줄 문자열로 변환합니다.
+ *
+ * @param error - 변환할 오류 값입니다.
+ * @returns 오류 메시지 문자열입니다.
+ */
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }

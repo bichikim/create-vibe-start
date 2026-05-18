@@ -1,0 +1,26 @@
+{
+  "name": "{{projectName}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @{{projectName}}/main-app dev",
+    "build": "pnpm --filter @{{projectName}}/main-app build",
+    "lint": "pnpm --filter @{{projectName}}/main-app lint",
+    "format": "pnpm --filter @{{projectName}}/main-app format",
+    "typecheck": "pnpm --filter @{{projectName}}/main-app typecheck",
+    "test": "pnpm --filter @{{projectName}}/main-app test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.1.2",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-plugin-eslint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

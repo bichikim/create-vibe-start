@@ -1,0 +1,15 @@
+node_modules
+dist
+.output
+.DS_Store
+*.log
+.env
+.vercel
+*.db
+*.db-shm
+*.db-wal
+
+.pnpm-store
+.history
+.idea
+.test-project

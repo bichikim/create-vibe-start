@@ -5,3 +5,5 @@ dist
 
 .pnpm-store
 .history
+.idea
+.test-project

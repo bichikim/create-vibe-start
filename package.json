@@ -1,6 +1,6 @@
 {
   "name": "create-vibe-start",
-  "version": "0.1.1-alpha.2",
+  "version": "0.1.1-alpha.3",
   "description": "Interactive CLI onboarding for preparing GitHub, Vercel, and Codex accounts.",
   "repository": {
     "type": "git",
@@ -14,13 +14,15 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts",
+    "dev": "tsx src/cli.ts --project-dir ../.test-project",
     "build": "vite build",
     "format": "oxfmt",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "reset:environment": "tsx src/cli.ts reset",
     "start": "node dist/cli.js",
+    "version:alpha": "pnpm version prerelease --preid=alpha",
+    "version:latest": "pnpm version patch",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -30,6 +32,7 @@
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "execa": "^9.6.0",
+    "node-plop": "^0.32.3",
     "ora": "^9.0.0",
     "which": "^5.0.0"
   },
@@ -44,10 +47,11 @@
     "typescript": "^5.9.3",
     "unplugin-dts": "^1.0.0",
     "vite": "^8.0.10",
+    "vite-plugin-static-copy": "^4.1.0",
     "vitest": "^4.1.5"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@11.1.2"
 }
