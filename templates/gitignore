@@ -13,3 +13,4 @@ dist
 .history
 .idea
 .test-project
+/apps/main-app/data
