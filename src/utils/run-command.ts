@@ -25,7 +25,7 @@ export async function runCommand(command: string, args: string[], label: string,
  * @param args - 명령에 전달할 인수 목록입니다.
  */
 export async function runCommandQuietly(command: string, args: string[], cwd?: string) {
-  await execa(command, args, {
+  return await execa(command, args, {
     stdio: 'pipe',
     preferLocal: false,
     ...(cwd ? {cwd} : {}),

@@ -1,20 +1,19 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
-const confirmMock = vi.fn()
 const isCancelMock = vi.fn()
 const logInfoMock = vi.fn()
 const logStepMock = vi.fn()
+const multiselectMock = vi.fn()
 const commandExistsMock = vi.fn()
 const runCommandMock = vi.fn()
-const runCommandInBackgroundMock = vi.fn()
 
 vi.mock('@clack/prompts', () => ({
-  confirm: confirmMock,
   isCancel: isCancelMock,
   log: {
     info: logInfoMock,
     step: logStepMock,
   },
+  multiselect: multiselectMock,
 }))
 
 vi.mock('../../utils/command-exists.js', () => ({
@@ -23,59 +22,57 @@ vi.mock('../../utils/command-exists.js', () => ({
 
 vi.mock('../../utils/run-command.js', () => ({
   runCommand: runCommandMock,
-  runCommandInBackground: runCommandInBackgroundMock,
 }))
 
 describe('launchCodexApp', () => {
   beforeEach(() => {
-    confirmMock.mockReset().mockResolvedValue(true)
     isCancelMock.mockReset().mockReturnValue(false)
     logInfoMock.mockReset()
     logStepMock.mockReset()
+    multiselectMock.mockReset().mockResolvedValue(['codex'])
     commandExistsMock.mockReset().mockResolvedValue(true)
     runCommandMock.mockReset().mockResolvedValue(undefined)
-    runCommandInBackgroundMock.mockReset()
   })
 
-  it('launches Codex app when setup is ready and the user confirms', async () => {
+  it('launches Codex app when setup is ready and the user selects it', async () => {
     const {launchCodexApp} = await import('../launch-codex-app')
 
     await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'})).resolves.toBe(true)
 
-    expect(confirmMock).toHaveBeenCalledWith({
-      message: 'Codex 앱을 /repo에서 열까요?',
-      initialValue: true,
+    expect(multiselectMock).toHaveBeenCalledWith({
+      message: '후속 작업을 선택하세요. (Space로 선택, Enter로 완료)',
+      options: [{label: 'Codex 앱 열기 (/repo)', value: 'codex'}],
+      required: false,
     })
     expect(runCommandMock).toHaveBeenCalledWith('codex', ['app', '/repo'], 'codex app /repo')
-    expect(runCommandInBackgroundMock).not.toHaveBeenCalled()
   })
 
-  it('asks to run dev in the background before launch when dependencies were installed', async () => {
+  it('asks for follow-up work and runs dev in the foreground after Codex app when selected', async () => {
+    multiselectMock.mockResolvedValue(['codex', 'dev'])
     const {launchCodexApp} = await import('../launch-codex-app')
 
     await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)).resolves.toBe(true)
 
-    expect(confirmMock).toHaveBeenNthCalledWith(1, {
-      message: '만든 앱을 바로 확인할 수 있게 실행해둘까요? (pnpm run dev)',
-      initialValue: true,
+    expect(multiselectMock).toHaveBeenCalledWith({
+      message: '후속 작업을 선택하세요. (Space로 선택, Enter로 완료)',
+      options: [
+        {label: 'Codex 앱 열기 (/repo)', value: 'codex'},
+        {label: 'dev 로컬 개발자 미리 보기 (pnpm run dev)', value: 'dev'},
+      ],
+      required: false,
     })
-    expect(confirmMock).toHaveBeenNthCalledWith(2, {
-      message: 'Codex 앱을 /repo에서 열까요?',
-      initialValue: true,
-    })
-    expect(runCommandInBackgroundMock).toHaveBeenCalledWith('pnpm', ['run', 'dev'], 'pnpm run dev', '/repo')
     expect(logInfoMock).toHaveBeenCalledWith('앱이 준비되면 여기에서 확인할 수 있어요: http://localhost:3000')
-    expect(runCommandMock).toHaveBeenCalledWith('codex', ['app', '/repo'], 'codex app /repo')
+    expect(runCommandMock).toHaveBeenNthCalledWith(1, 'codex', ['app', '/repo'], 'codex app /repo')
+    expect(runCommandMock).toHaveBeenNthCalledWith(2, 'pnpm', ['run', 'dev'], 'pnpm run dev', '/repo')
   })
 
-  it('does not run dev when the user declines', async () => {
-    confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+  it('runs only dev preview when only dev is selected', async () => {
+    multiselectMock.mockResolvedValue(['dev'])
     const {launchCodexApp} = await import('../launch-codex-app')
 
-    await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)).resolves.toBe(true)
+    await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)).resolves.toBe(false)
 
-    expect(runCommandInBackgroundMock).not.toHaveBeenCalled()
-    expect(runCommandMock).toHaveBeenCalledWith('codex', ['app', '/repo'], 'codex app /repo')
+    expect(runCommandMock).toHaveBeenCalledWith('pnpm', ['run', 'dev'], 'pnpm run dev', '/repo')
   })
 
   it('skips launch when Codex setup is not ready', async () => {
@@ -85,22 +82,37 @@ describe('launchCodexApp', () => {
       launchCodexApp('/repo', {name: 'Codex', status: 'skipped', message: 'skipped'}),
     ).resolves.toBe(false)
 
-    expect(confirmMock).not.toHaveBeenCalled()
+    expect(multiselectMock).not.toHaveBeenCalled()
     expect(runCommandMock).not.toHaveBeenCalled()
   })
 
-  it('skips launch when codex command is missing', async () => {
+  it('skips launch when codex command is missing and dev preview is unavailable', async () => {
     commandExistsMock.mockResolvedValue(false)
     const {launchCodexApp} = await import('../launch-codex-app')
 
     await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'})).resolves.toBe(false)
 
-    expect(confirmMock).not.toHaveBeenCalled()
+    expect(multiselectMock).not.toHaveBeenCalled()
     expect(runCommandMock).not.toHaveBeenCalled()
   })
 
-  it('skips launch when the user declines or cancels', async () => {
-    confirmMock.mockResolvedValue(false)
+  it('offers dev preview when codex command is missing', async () => {
+    commandExistsMock.mockResolvedValue(false)
+    multiselectMock.mockResolvedValue(['dev'])
+    const {launchCodexApp} = await import('../launch-codex-app')
+
+    await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)).resolves.toBe(false)
+
+    expect(multiselectMock).toHaveBeenCalledWith({
+      message: '후속 작업을 선택하세요. (Space로 선택, Enter로 완료)',
+      options: [{label: 'dev 로컬 개발자 미리 보기 (pnpm run dev)', value: 'dev'}],
+      required: false,
+    })
+    expect(runCommandMock).toHaveBeenCalledWith('pnpm', ['run', 'dev'], 'pnpm run dev', '/repo')
+  })
+
+  it('skips launch when the user selects nothing or cancels', async () => {
+    multiselectMock.mockResolvedValue([])
     const {launchCodexApp} = await import('../launch-codex-app')
 
     await expect(launchCodexApp('/repo', {name: 'Codex', status: 'ready', message: 'ok'})).resolves.toBe(false)

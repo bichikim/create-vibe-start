@@ -1,12 +1,13 @@
-import {confirm, isCancel, log} from '@clack/prompts'
+import {isCancel, log, multiselect} from '@clack/prompts'
 import chalk from 'chalk'
 import {commandExists} from '../utils/command-exists'
-import {runCommand, runCommandInBackground} from '../utils/run-command'
+import {runCommand} from '../utils/run-command'
 import type {SetupResult} from './setup-tool'
 
 /** Codex CLI와 앱이 모두 준비되었을 때 표시할 완료 메시지입니다. */
 export const CODEX_READY_WITH_APP_MESSAGE = 'Codex CLI 및 Codex 앱 사용 가능'
 const DEV_SERVER_URL = 'http://localhost:3000'
+type FollowUpAction = 'codex' | 'dev'
 
 /**
  * Codex CLI가 준비된 경우 데스크톱 앱을 프로젝트 폴더에서 실행합니다.
@@ -25,34 +26,40 @@ export async function launchCodexApp(
     return false
   }
 
-  if (!(await commandExists('codex'))) {
+  const canLaunchCodex = await commandExists('codex')
+  const options: {label: string; value: FollowUpAction}[] = [
+    ...(canLaunchCodex ? [{label: `Codex 앱 열기 (${projectDir})`, value: 'codex' as const}] : []),
+    ...(dependenciesInstalled ? [{label: 'dev 로컬 개발자 미리 보기 (pnpm run dev)', value: 'dev' as const}] : []),
+  ]
+
+  if (options.length === 0) {
     return false
   }
 
-  if (dependenciesInstalled) {
-    const shouldRunDev = await confirm({
-      message: '만든 앱을 바로 확인할 수 있게 실행해둘까요? (pnpm run dev)',
-      initialValue: true,
-    })
-
-    if (!isCancel(shouldRunDev) && shouldRunDev) {
-      runCommandInBackground('pnpm', ['run', 'dev'], 'pnpm run dev', projectDir)
-      log.info(`앱이 준비되면 여기에서 확인할 수 있어요: ${DEV_SERVER_URL}`)
-    }
-  }
-
-  const shouldLaunch = await confirm({
-    message: `Codex 앱을 ${projectDir}에서 열까요?`,
-    initialValue: true,
+  const followUpActions = await multiselect<FollowUpAction>({
+    message: '후속 작업을 선택하세요. (Space로 선택, Enter로 완료)',
+    options,
+    required: false,
   })
 
-  if (isCancel(shouldLaunch) || !shouldLaunch) {
+  if (isCancel(followUpActions) || followUpActions.length === 0) {
     return false
   }
 
-  log.step(chalk.bold('Codex 앱 실행'))
-  await runCommand('codex', ['app', projectDir], `codex app ${projectDir}`)
-  return true
+  const shouldLaunchCodex = followUpActions.includes('codex')
+  const shouldRunDev = followUpActions.includes('dev')
+
+  if (shouldLaunchCodex) {
+    log.step(chalk.bold('Codex 앱 실행'))
+    await runCommand('codex', ['app', projectDir], `codex app ${projectDir}`)
+  }
+
+  if (shouldRunDev) {
+    log.info(`앱이 준비되면 여기에서 확인할 수 있어요: ${DEV_SERVER_URL}`)
+    await runCommand('pnpm', ['run', 'dev'], 'pnpm run dev', projectDir)
+  }
+
+  return shouldLaunchCodex
 }
 
 /**

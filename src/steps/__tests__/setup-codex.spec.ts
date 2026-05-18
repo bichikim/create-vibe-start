@@ -6,6 +6,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 const setupToolMock = vi.fn()
 const commandExistsMock = vi.fn()
 const runCommandMock = vi.fn()
+const runCommandQuietlyMock = vi.fn()
 const logWarnMock = vi.fn()
 let homeDir: string
 let originalHome: string | undefined
@@ -20,6 +21,7 @@ vi.mock('../../utils/command-exists.js', () => ({
 
 vi.mock('../../utils/run-command.js', () => ({
   runCommand: runCommandMock,
+  runCommandQuietly: runCommandQuietlyMock,
 }))
 
 vi.mock('@clack/prompts', () => ({
@@ -37,6 +39,7 @@ describe('setupCodex', () => {
     setupToolMock.mockReset().mockResolvedValue({name: 'Codex', status: 'skipped', message: 'ok'})
     commandExistsMock.mockReset().mockResolvedValue(false)
     runCommandMock.mockReset().mockResolvedValue(undefined)
+    runCommandQuietlyMock.mockReset().mockResolvedValue({stdout: '', stderr: ''})
     logWarnMock.mockReset()
   })
 
@@ -108,6 +111,7 @@ describe('setupCodex', () => {
 
     await setupCodex()
 
+    expect(runCommandQuietlyMock).toHaveBeenCalledWith('codex', ['plugin', 'marketplace', 'list'])
     expect(runCommandMock).toHaveBeenCalledWith(
       'codex',
       ['plugin', 'marketplace', 'add', 'openai/plugins'],
@@ -119,6 +123,19 @@ describe('setupCodex', () => {
     expect(config).toContain('[plugins."vercel@openai-curated"]\nenabled = true')
     expect(config).toContain('[plugins."openai-developers@openai-curated"]\nenabled = true')
     expect(config).toContain('[plugins."build-web-apps@openai-curated"]\nenabled = true')
+  })
+
+  it('skips adding the official marketplace when it already exists', async () => {
+    setupToolMock.mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
+    runCommandQuietlyMock.mockResolvedValue({stdout: 'openai-curated  openai/plugins', stderr: ''})
+    const {setupCodex} = await import('../setup-codex')
+
+    await setupCodex()
+
+    expect(runCommandMock).not.toHaveBeenCalled()
+
+    const config = await readFile(path.join(homeDir, '.codex', 'config.toml'), 'utf8')
+    expect(config).toContain('[plugins."github@openai-curated"]\nenabled = true')
   })
 
   it('does not duplicate existing plugin config blocks', async () => {

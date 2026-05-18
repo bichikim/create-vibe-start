@@ -13,6 +13,7 @@ const selectProjectDirMock = vi.fn()
 const generateTemplateMock = vi.fn()
 const installDependenciesMock = vi.fn()
 const createGitHubRepositoryMock = vi.fn()
+const deployVercelProjectMock = vi.fn()
 const launchCodexAppMock = vi.fn()
 const showCompleteMock = vi.fn()
 const confirmMock = vi.fn()
@@ -55,6 +56,10 @@ vi.mock('../steps/create-github-repository.js', () => ({
   createGitHubRepository: createGitHubRepositoryMock,
 }))
 
+vi.mock('../steps/deploy-vercel-project.js', () => ({
+  deployVercelProject: deployVercelProjectMock,
+}))
+
 vi.mock('../steps/launch-codex-app.js', async () => {
   const actual = await vi.importActual<typeof import('../steps/launch-codex-app')>('../steps/launch-codex-app')
   return {
@@ -90,7 +95,8 @@ describe('CLI program', () => {
     selectProjectDirMock.mockReset().mockResolvedValue('/repo')
     generateTemplateMock.mockReset().mockResolvedValue(undefined)
     installDependenciesMock.mockReset().mockResolvedValue(true)
-    createGitHubRepositoryMock.mockReset().mockResolvedValue(undefined)
+    createGitHubRepositoryMock.mockReset().mockResolvedValue('bichikim/my-app')
+    deployVercelProjectMock.mockReset().mockResolvedValue(undefined)
     launchCodexAppMock.mockReset().mockResolvedValue(true)
     showCompleteMock.mockReset()
     confirmMock.mockReset().mockResolvedValue(true)
@@ -120,6 +126,11 @@ describe('CLI program', () => {
       initialValue: true,
     })
     expect(createGitHubRepositoryMock).toHaveBeenCalledWith('/repo', 'my-app')
+    expect(confirmMock).toHaveBeenNthCalledWith(3, {
+      message: 'Vercel에 프로젝트를 연결하고 배포할까요?',
+      initialValue: true,
+    })
+    expect(deployVercelProjectMock).toHaveBeenCalledWith('/repo', 'my-app', 'bichikim/my-app')
     expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)
     expect(showCompleteMock).toHaveBeenCalledWith([
       {name: 'GitHub', status: 'ready', message: 'ok'},
@@ -145,6 +156,7 @@ describe('CLI program', () => {
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
     expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
     expect(launchCodexAppMock).not.toHaveBeenCalled()
     expect(showCompleteMock).toHaveBeenCalledWith([{name: 'Vercel', status: 'ready', message: 'ok'}])
   })
@@ -187,6 +199,7 @@ describe('CLI program', () => {
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
     expect(installDependenciesMock).toHaveBeenCalledWith('/repo')
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
     expect(launchCodexAppMock).toHaveBeenCalledWith('/repo', {name: 'Codex', status: 'ready', message: 'ok'}, true)
     expect(showCompleteMock).toHaveBeenCalledWith([
       {name: 'GitHub', status: 'ready', message: 'ok'},
@@ -203,6 +216,31 @@ describe('CLI program', () => {
 
     expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'})
     expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
+  })
+
+  it('skips Vercel deployment when declined', async () => {
+    confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(createGitHubRepositoryMock).toHaveBeenCalledWith('/repo', 'my-app')
+    expect(confirmMock).toHaveBeenNthCalledWith(3, {
+      message: 'Vercel에 프로젝트를 연결하고 배포할까요?',
+      initialValue: true,
+    })
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
+  })
+
+  it('does not deploy to Vercel when Vercel setup is not ready', async () => {
+    setupVercelMock.mockResolvedValue({name: 'Vercel', status: 'skipped', message: 'skip'})
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(createGitHubRepositoryMock).toHaveBeenCalledWith('/repo', 'my-app')
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
   })
 
   it('exits when project name selection is cancelled', async () => {

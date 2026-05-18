@@ -6,6 +6,7 @@ import {confirm, isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
 import {runResetEnvironment} from './commands/reset-environment'
 import {createGitHubRepository} from './steps/create-github-repository'
+import {deployVercelProject} from './steps/deploy-vercel-project'
 import {generateTemplate} from './steps/generate-template'
 import {installDependencies} from './steps/install-dependencies'
 import {launchCodexApp, withCodexAppReadyMessage} from './steps/launch-codex-app'
@@ -23,6 +24,18 @@ const require = createRequire(import.meta.url)
 /** CLI 버전 표시를 위해 package.json의 버전만 읽습니다. */
 const packageJson = require('../package.json') as {version: string}
 
+type CliOptions = {
+  skipGithub?: boolean
+  skipVercel?: boolean
+  skipCodex?: boolean
+  projectDir?: string
+}
+
+type CreatedProject = {
+  projectDir: string
+  projectName: string
+}
+
 /**
  * create-vibe-start 명령과 하위 명령을 구성합니다.
  *
@@ -37,7 +50,7 @@ export function createProgram() {
     .option('--skip-vercel', 'Skip Vercel CLI setup')
     .option('--skip-codex', 'Skip Codex CLI setup')
     .option('--project-dir <path>', 'Default project working directory')
-    .action(async (options: {skipGithub?: boolean; skipVercel?: boolean; skipCodex?: boolean; projectDir?: string}) => {
+    .action(async (options: CliOptions) => {
       try {
         const proceed = await showWelcome()
 
@@ -82,17 +95,9 @@ export function createProgram() {
         await generateTemplate(projectDir, {projectName})
         const dependenciesInstalled = await installDependencies(projectDir)
 
-        const githubResult = results.find((result) => result.name === 'GitHub')
-        if (!options.skipGithub && githubResult?.status === 'ready') {
-          const shouldCreateGitHubRepository = await confirm({
-            message: 'GitHub에 저장소를 만들고 저장할까요?',
-            initialValue: true,
-          })
-
-          if (!isCancel(shouldCreateGitHubRepository) && shouldCreateGitHubRepository) {
-            await createGitHubRepository(projectDir, projectName)
-          }
-        }
+        const createdProject = {projectDir, projectName}
+        const githubRepositoryCreated = await maybeCreateGitHubRepository(options, results, createdProject)
+        await maybeDeployVercelProject(options, results, createdProject, githubRepositoryCreated)
 
         let finalResults = results
         if (!options.skipCodex) {
@@ -120,6 +125,55 @@ export function createProgram() {
     })
 
   return program
+}
+
+/**
+ * 사용자가 원하면 생성된 프로젝트를 GitHub 저장소로 올립니다.
+ *
+ * @returns 생성된 GitHub 저장소의 owner/name 형식 이름입니다.
+ */
+async function maybeCreateGitHubRepository(
+  options: CliOptions,
+  results: SetupResult[],
+  createdProject: CreatedProject,
+) {
+  const githubResult = results.find((result) => result.name === 'GitHub')
+  if (options.skipGithub || githubResult?.status !== 'ready') {
+    return false
+  }
+
+  const shouldCreateGitHubRepository = await confirm({
+    message: 'GitHub에 저장소를 만들고 저장할까요?',
+    initialValue: true,
+  })
+
+  if (isCancel(shouldCreateGitHubRepository) || !shouldCreateGitHubRepository) {
+    return false
+  }
+
+  return createGitHubRepository(createdProject.projectDir, createdProject.projectName)
+}
+
+/** GitHub 저장소가 준비된 프로젝트를 사용자가 원하면 Vercel에 배포합니다. */
+async function maybeDeployVercelProject(
+  options: CliOptions,
+  results: SetupResult[],
+  createdProject: CreatedProject,
+  githubRepository: string | false,
+) {
+  const vercelResult = results.find((result) => result.name === 'Vercel')
+  if (options.skipVercel || vercelResult?.status !== 'ready' || !githubRepository) {
+    return
+  }
+
+  const shouldDeployVercelProject = await confirm({
+    message: 'Vercel에 프로젝트를 연결하고 배포할까요?',
+    initialValue: true,
+  })
+
+  if (!isCancel(shouldDeployVercelProject) && shouldDeployVercelProject) {
+    await deployVercelProject(createdProject.projectDir, createdProject.projectName, githubRepository)
+  }
 }
 
 /**
