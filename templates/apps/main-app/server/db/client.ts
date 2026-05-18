@@ -16,10 +16,10 @@ function prepareLocalDatabase(databaseUrl: string) {
   }
 }
 
-prepareLocalDatabase(env.DATABASE_URL)
+prepareLocalDatabase(env.TURSO_DATABASE_URL)
 
 export const client = createClient({
-  url: env.DATABASE_URL,
+  url: env.TURSO_DATABASE_URL,
   authToken: env.TURSO_AUTH_TOKEN || undefined,
 })
 
