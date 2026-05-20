@@ -196,6 +196,10 @@ jobs:
           git tag "${TAG}"
           git push origin "${TAG}"
 
+      - name: Prepare install script release assets
+        if: steps.version-gate.outputs.should_release == 'true'
+        run: bash scripts/prepare-release-assets.sh alpha release-assets
+
       - name: Create GitHub prerelease
         if: steps.version-gate.outputs.should_release == 'true'
         env:
@@ -217,7 +221,10 @@ jobs:
             --target "${GITHUB_SHA}" \
             --prerelease \
             --title "${TAG}" \
-            --generate-notes
+            --generate-notes \
+            release-assets/install.sh \
+            release-assets/install.ps1 \
+            release-assets/SHA256SUMS
 
       - name: Skip release
         if: steps.version-gate.outputs.should_release != 'true'
