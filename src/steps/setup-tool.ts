@@ -17,8 +17,8 @@ type SetupToolOptions = {
   command: string
   commandLabel?: string
   versionArgs: string[]
-  authCheckArgs: string[]
-  loginArgs: string[]
+  authCheckArgs?: string[]
+  loginArgs?: string[]
   loginLabel?: string
   install: Record<'macos' | 'linux' | 'windows', PlatformCommand>
 }
@@ -79,7 +79,17 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
     }
   }
 
-  const loggedIn = await isAuthenticated(options)
+  const {authCheckArgs, loginArgs} = options
+
+  if (!authCheckArgs || !loginArgs) {
+    return {
+      name: options.name,
+      status: 'ready',
+      message: `${options.name} CLI 사용 가능`,
+    }
+  }
+
+  const loggedIn = await isAuthenticated(options.command, authCheckArgs)
   if (loggedIn) {
     return {
       name: options.name,
@@ -104,8 +114,8 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
   try {
     await runCommand(
       options.command,
-      options.loginArgs,
-      options.loginLabel ?? `${options.command} ${options.loginArgs.join(' ')}`,
+      loginArgs,
+      options.loginLabel ?? `${options.command} ${loginArgs.join(' ')}`,
     )
   } catch (error) {
     return {
@@ -115,7 +125,7 @@ export async function setupTool(options: SetupToolOptions): Promise<SetupResult>
     }
   }
 
-  const ready = await isAuthenticated(options)
+  const ready = await isAuthenticated(options.command, authCheckArgs)
   return ready
     ? {
         name: options.name,
@@ -177,9 +187,9 @@ async function offerInstall(options: SetupToolOptions): Promise<boolean> {
  * @param options - 인증 확인 명령을 포함한 CLI 설정입니다.
  * @returns 인증되어 있으면 `true`, 아니면 `false`입니다.
  */
-async function isAuthenticated(options: SetupToolOptions): Promise<boolean> {
+async function isAuthenticated(command: string, authCheckArgs: string[]): Promise<boolean> {
   try {
-    await runCommandQuietly(options.command, options.authCheckArgs)
+    await runCommandQuietly(command, authCheckArgs)
     return true
   } catch {
     return false

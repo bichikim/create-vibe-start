@@ -95,6 +95,28 @@ describe('setupTool', () => {
     expect(confirmMock).not.toHaveBeenCalled()
   })
 
+  it('returns ready without login when auth commands are not configured', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    const {setupTool} = await import('../setup-tool')
+
+    await expect(
+      setupTool({
+        name: 'Git',
+        command: 'git',
+        versionArgs: ['--version'],
+        install: options.install,
+      }),
+    ).resolves.toEqual({
+      name: 'Git',
+      status: 'ready',
+      message: 'Git CLI 사용 가능',
+    })
+
+    expect(runCommandQuietlyMock).toHaveBeenCalledOnce()
+    expect(runCommandQuietlyMock).toHaveBeenCalledWith('git', ['--version'])
+    expect(confirmMock).not.toHaveBeenCalled()
+  })
+
   it('uses the command label for the successful check message when provided', async () => {
     commandExistsMock.mockResolvedValue(true)
     const {setupTool} = await import('../setup-tool')
