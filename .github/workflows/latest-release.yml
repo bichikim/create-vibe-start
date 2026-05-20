@@ -138,6 +138,10 @@ jobs:
           git tag "${TAG}"
           git push origin "${TAG}"
 
+      - name: Prepare install script release assets
+        if: steps.version-gate.outputs.should_release == 'true'
+        run: bash scripts/prepare-release-assets.sh latest release-assets
+
       - name: Create GitHub release
         if: steps.version-gate.outputs.should_release == 'true'
         env:
@@ -158,7 +162,10 @@ jobs:
           gh release create "${TAG}" \
             --target "${GITHUB_SHA}" \
             --title "${TAG}" \
-            --generate-notes
+            --generate-notes \
+            release-assets/install.sh \
+            release-assets/install.ps1 \
+            release-assets/SHA256SUMS
 
       - name: Skip release
         if: steps.version-gate.outputs.should_release != 'true'

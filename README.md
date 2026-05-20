@@ -6,7 +6,48 @@ The package is [published on npm](https://www.npmjs.com/package/create-vibe-star
 
 ## Quick Start
 
-Requires **Node.js 22+** (`engines.node` in `package.json`).
+### No Node.js yet
+
+Each [GitHub Release](https://github.com/bichikim/create-vibe-start/releases) ships `install.sh`, `install.ps1`, and `SHA256SUMS`. CI bakes the release version into the installers (for example `vibe-start@0.1.2` and a pinned Node.js 22.x tarball on Linux). Stable releases are cut on `release/latest`; alpha prereleases on `release/alpha`.
+
+**Recommended** — download, verify checksums, then run (macOS / Linux):
+
+```bash
+VERSION=v0.1.2
+BASE="https://github.com/bichikim/create-vibe-start/releases/download/${VERSION}"
+curl -fsSL "${BASE}/SHA256SUMS" -o SHA256SUMS
+curl -fsSL "${BASE}/install.sh" -o install.sh
+sha256sum -c SHA256SUMS && bash install.sh
+```
+
+Windows (PowerShell):
+
+```powershell
+$Version = "v0.1.2"
+$Base = "https://github.com/bichikim/create-vibe-start/releases/download/$Version"
+Invoke-WebRequest "$Base/SHA256SUMS" -OutFile SHA256SUMS
+Invoke-WebRequest "$Base/install.ps1" -OutFile install.ps1
+$expected = ((Get-Content SHA256SUMS) -split '\s+')[0]
+$actual = (Get-FileHash install.ps1 -Algorithm SHA256).Hash.ToLower()
+if ($actual -ne $expected) { throw "Checksum mismatch for install.ps1" }
+.\install.ps1
+```
+
+Replace `v0.1.2` with your [release tag](https://github.com/bichikim/create-vibe-start/releases). Alpha tags look like `v0.1.2-alpha.3`. The installer npm spec always matches that tag’s package version.
+
+**Quick (unverified)** — same scripts, pipe directly (skips checksum verification):
+
+```bash
+curl -fsSL https://github.com/bichikim/create-vibe-start/releases/latest/download/install.sh | bash
+```
+
+```powershell
+irm https://github.com/bichikim/create-vibe-start/releases/latest/download/install.ps1 | iex
+```
+
+`releases/latest` points at the newest **stable** release only, not alpha.
+
+### Already have Node.js 22+
 
 Run the onboarding flow (downloads `create-vibe-start` from npm and starts the interactive CLI):
 
@@ -96,6 +137,23 @@ pnpm dev
 pnpm build
 ```
 
+### Git-less Docker sanity check (Linux)
+
+[`docker/gitless-test.Dockerfile`](docker/gitless-test.Dockerfile) builds a Debian-based image with Node.js and **without** Git, so you can manually exercise the Linux Git install branch (`apt-get install git`; root in the container). Build and drop into an interactive shell:
+
+```bash
+docker build -f docker/gitless-test.Dockerfile -t create-vibe-start:gitless .
+docker run --rm -it create-vibe-start:gitless
+```
+
+Inside the container, run something like:
+
+```bash
+node dist/cli.js --skip-vercel --skip-codex
+```
+
+Interactive prompts assume a TTY (`-it`).
+
 ## Alpha Release Automation
 
 Publish a new alpha in two local steps, then let GitHub Actions create the prerelease and publish to npm.
@@ -129,6 +187,7 @@ Publish a new alpha in two local steps, then let GitHub Actions create the prere
 - Release runs only when `package.json` is an alpha version and strictly newer than npm's latest alpha.
 - On pass, it creates `v<package.json version>` tag and a GitHub prerelease via:
   - `gh release create ... --title "v<version>" --generate-notes --prerelease`
+- The release includes `install.sh`, `install.ps1`, and `SHA256SUMS` (package and Node.js versions baked into the installers).
 - The workflow requires `RELEASE_TOKEN` repository secret (PAT or GitHub App token) for release creation so `release: published` can trigger downstream publish workflow.
 - npm publish is not executed in `alpha-release.yml`.
 - The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
@@ -173,6 +232,7 @@ Publish a new stable release the same way as alpha: bump `package.json` locally,
 - Release runs only when `package.json` is a stable semver (`x.y.z` with no prerelease suffix) and strictly newer than npm's latest stable.
 - On pass, it creates `v<package.json version>` tag and a GitHub release via:
   - `gh release create ... --title "v<version>" --generate-notes` (not a prerelease)
+- The release includes `install.sh`, `install.ps1`, and `SHA256SUMS` (package and Node.js versions baked into the installers).
 - The workflow requires `RELEASE_TOKEN` repository secret (PAT or GitHub App token) for release creation so `release: published` can trigger downstream publish workflow.
 - npm publish is not executed in `latest-release.yml`.
 - The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
