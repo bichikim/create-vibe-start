@@ -127,7 +127,7 @@ The reset command covers GitHub CLI, Vercel CLI, and Codex CLI setup. It removes
 
 ## Generated Project Template
 
-After the onboarding checks, the CLI asks for a project directory and writes starter files from `src/templates/template-manifest.json`. The current template creates a project `README.md`.
+After the onboarding checks, the CLI asks for a project directory and writes starter files from `templates/template-manifest.json`. The current template creates a Nitro + Vue monorepo with Better Auth, oRPC, and Drizzle.
 
 ## Development
 

@@ -114,10 +114,12 @@ describe('generateTemplate', () => {
     }
     const appPackageJson = JSON.parse(await readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')) as {
       name: string
+      dependencies: Record<string, string>
     }
 
     expect(readme.startsWith('# my-app\n')).toBe(true)
-    expect(readme).toContain('pnpm --filter @my-app/main-app db:push')
+    expect(readme).toContain('pnpm --filter @my-app/main-app db:migrate')
+    expect(appPackageJson.dependencies).toMatchObject({['better-auth']: 'catalog:'})
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
     expect(appPackageJson.name).toBe('@my-app/main-app')

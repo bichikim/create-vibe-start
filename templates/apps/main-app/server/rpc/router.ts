@@ -1,10 +1,16 @@
 import {desc} from 'drizzle-orm'
 import {os} from '@orpc/server'
 import {z} from 'zod'
+import {auth} from '../auth'
 import {db, ensureDatabase} from '../db/client'
 import {notes} from '../db/schema'
 
+type RpcContext = {
+  session: Awaited<ReturnType<typeof auth.api.getSession>>
+}
+
 const noteTextMaxLength = 240
+const unauthorizedMessage = 'Unauthorized'
 
 const NoteSchema = z.object({
   id: z.number().int(),
@@ -22,7 +28,11 @@ export const appRouter = {
       await ensureDatabase()
       return db.select().from(notes).orderBy(desc(notes.createdAt))
     }),
-    create: os.input(CreateNoteSchema).output(NoteSchema).handler(async ({input}) => {
+    create: os.input(CreateNoteSchema).output(NoteSchema).handler(async ({input, context}) => {
+      if (!(context as RpcContext).session) {
+        throw new Error(unauthorizedMessage)
+      }
+
       await ensureDatabase()
       const [note] = await db.insert(notes).values({text: input.text}).returning()
       return note

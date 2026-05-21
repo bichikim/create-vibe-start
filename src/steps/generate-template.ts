@@ -18,7 +18,7 @@ const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
 
 /** production 빌드(import.meta.env.PROD)는 패키지 옆 dist/templates, dev/test는 repo 루트 templates를 사용합니다. */
 export function resolveDefaultTemplateDir(moduleUrl: string = import.meta.url): string {
-  if (import.meta.env.PROD) {
+  if (import.meta.env?.PROD) {
     return join(dirname(fileURLToPath(moduleUrl)), 'templates')
   }
   return 'templates'
