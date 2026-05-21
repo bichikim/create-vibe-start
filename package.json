@@ -1,6 +1,6 @@
 {
   "name": "create-vibe-start",
-  "version": "0.1.3-alpha.0",
+  "version": "0.1.3-alpha.1",
   "description": "Interactive CLI onboarding for preparing GitHub, Vercel, and Codex accounts.",
   "repository": {
     "type": "git",
