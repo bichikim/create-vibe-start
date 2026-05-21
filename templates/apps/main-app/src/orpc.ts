@@ -5,6 +5,7 @@ import type {appRouter} from '@server/rpc/router'
 
 const link = new RPCLink({
   url: `${window.location.origin}/rpc`,
+  fetch: (input, init) => fetch(input, {...init, credentials: 'include'}),
 })
 
 export const orpc: RouterClient<typeof appRouter> = createORPCClient(link)

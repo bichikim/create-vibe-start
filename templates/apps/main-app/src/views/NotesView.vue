@@ -4,9 +4,12 @@ import {computed, ref} from 'vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppDialog from '../components/ui/AppDialog.vue'
 import AppTooltip from '../components/ui/AppTooltip.vue'
+import {authClient} from '../lib/auth-client'
 import {orpc} from '../orpc'
 
+const session = authClient.useSession()
 const notesKey = ['notes']
+const unauthorizedMessage = 'Sign in to add notes.'
 const text = ref('')
 const addDialogOpen = ref(false)
 const queryCache = useQueryCache()
@@ -40,7 +43,9 @@ function submitNote() {
     <div class="mb-6 flex items-center justify-between gap-5 max-sm:flex-col max-sm:items-stretch">
       <div>
         <h2 class="text-2xl font-semibold">Notes</h2>
-        <p class="mt-1 text-sm text-slate-500">Data is cached and invalidated through Pinia Colada.</p>
+        <p class="mt-1 text-sm text-slate-500">
+          Data is cached and invalidated through Pinia Colada. Adding notes requires a signed-in session.
+        </p>
       </div>
       <div class="flex gap-2">
         <AppDialog
@@ -49,7 +54,7 @@ function submitNote() {
           description="Save a short note through the oRPC notes router."
         >
           <template #trigger>
-            <AppButton type="button">Add note</AppButton>
+            <AppButton type="button" :disabled="!session.data?.user">Add note</AppButton>
           </template>
 
           <form class="grid gap-4" @submit.prevent="submitNote">
@@ -82,7 +87,19 @@ function submitNote() {
       </div>
     </div>
 
-    <p v-if="notesQuery.error.value || createNote.error.value" class="my-4 text-red-700">Could not sync notes.</p>
+    <p v-if="!session.data?.user" class="my-4 text-sm text-slate-600">
+      <RouterLink class="underline" to="/login">Sign in</RouterLink>
+      to add notes.
+    </p>
+    <p
+      v-if="notesQuery.error.value || (createNote.error.value && createNote.error.value.message !== unauthorizedMessage)"
+      class="my-4 text-red-700"
+    >
+      Could not sync notes.
+    </p>
+    <p v-else-if="createNote.error.value?.message === unauthorizedMessage" class="my-4 text-red-700">
+      {{ unauthorizedMessage }}
+    </p>
     <p v-else-if="notesQuery.asyncStatus.value === 'loading' && notes.length === 0" class="my-4 text-slate-500">
       Loading notes...
     </p>

@@ -21,7 +21,7 @@ Minimum code that solves the problem. Nothing speculative.
 If you are starting from scratch, set up this environment. If the project already exists, it must match the environment below.
 
 - Shared: oxlint, oxfmt, vitest, typescript, pnpm workspace
-- App: Nitro, Vite, Vue Router, Pinia, Pinia Colada, Tailwind CSS, Zod, oRPC, Drizzle, libSQL
+- App: Nitro, Vite, Vue Router, Pinia, Pinia Colada, Tailwind CSS, Zod, oRPC, Drizzle, libSQL, Better Auth
 
 ### Package Manager
 
@@ -65,12 +65,22 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 - Client variables must be prefixed `VITE_`.
 - Validate server env with zod in `server/env.ts`; import the typed object instead of reading `process.env` directly.
 
+### Authentication
+
+- Better Auth lives in `apps/main-app/server/auth.ts` with email/password enabled.
+- `BETTER_AUTH_URL` is the canonical base URL for auth callbacks; in development, any `localhost` / `127.0.0.1` origin is trusted regardless of port.
+- Add LAN or custom hosts via `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated).
+- Nitro mounts the handler at `server/routes/api/auth/[...all].ts` using `auth.handler(event.req)`.
+- Vue client: `src/lib/auth-client.ts` (`better-auth/vue`). Session cookies must be sent to oRPC (`credentials: "include"` in `src/orpc.ts`). Leave `VITE_BETTER_AUTH_URL` empty to use `window.location.origin`.
+- Regenerate auth tables with `pnpm --filter @vibe-start/main-app auth:generate` after changing the auth config.
+
 ### Database
 
 - Local SQLite-compatible data lives at `apps/main-app/data/app.db` via `TURSO_DATABASE_URL=file:./data/app.db`.
 - Vercel production uses Turso/libSQL with `TURSO_DATABASE_URL=libsql://...` and `TURSO_AUTH_TOKEN`.
-- Use `drizzle-orm` + `drizzle-kit`. Schema in `apps/main-app/server/db/schema.ts`, migrations in `apps/main-app/drizzle/`.
-- Run `pnpm --filter @vibe-start/main-app db:generate`, `db:migrate`, or `db:push` for schema changes.
+- Use `drizzle-orm` + `drizzle-kit`. App tables in `server/db/schema.ts` (re-exports `auth-schema.ts` + `notes`). Migrations in `apps/main-app/drizzle/`.
+- After scaffold, run `db:migrate` so Better Auth tables exist. `notes` still uses `ensureDatabase()` for the demo table.
+- Run `pnpm --filter @vibe-start/main-app db:generate` and `db:migrate` for schema changes.
 
 ### Testing
 
