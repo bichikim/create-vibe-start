@@ -108,4 +108,4 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 
 - `apps/main-app` → Vercel.
 - Set Vercel project root to `apps/main-app` or use equivalent build settings.
-- The Vercel deployment flow provisions Turso through the Marketplace with the `starter` plan in `iad1` so it automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. `create-vibe-start` sets production `BETTER_AUTH_SECRET` before the first deploy; `BETTER_AUTH_URL` comes from Vercel system env at runtime.
+- The Vercel deployment flow provisions Turso through the Marketplace with the `starter` plan in `iad1` so it automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. `create-vibe-start` sets production `BETTER_AUTH_SECRET`, runs `db:migrate` on Turso before the first deploy, and Vercel builds run `pnpm db:migrate && pnpm build`. `BETTER_AUTH_URL` comes from Vercel system env at runtime.

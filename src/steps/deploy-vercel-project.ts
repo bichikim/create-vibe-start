@@ -4,6 +4,7 @@ import {homedir} from 'node:os'
 import {join} from 'node:path'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
+import {execa} from 'execa'
 import {runCommand} from '../utils/run-command'
 
 type VercelProject = {
@@ -25,6 +26,7 @@ export async function deployVercelProject(projectDir: string, projectName: strin
   await writeVercelProjectLink(projectDir, project)
   await connectTursoDatabase(projectDir, projectName)
   await setBetterAuthSecret(project)
+  await migrateTursoDatabase(projectDir)
   await runCommand('vercel', ['--prod'], 'vercel --prod', projectDir)
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
@@ -57,6 +59,65 @@ async function setBetterAuthSecret(project: VercelProject) {
   if (!response.ok) {
     throw new Error(body?.error?.message ?? 'Better Auth 환경 변수 설정에 실패했습니다.')
   }
+}
+
+/** Turso에 Drizzle 마이그레이션을 적용해 Better Auth 테이블을 만듭니다. */
+async function migrateTursoDatabase(projectDir: string) {
+  const appDir = join(projectDir, 'apps/main-app')
+  const envFile = join(appDir, '.env.migrate.local')
+
+  await runCommand(
+    'vercel',
+    ['env', 'pull', envFile, '--environment', 'production', '--yes'],
+    'vercel env pull',
+    projectDir,
+  )
+
+  const turso = await readTursoEnvFromFile(envFile)
+  if (!turso.TURSO_DATABASE_URL) {
+    throw new Error('TURSO_DATABASE_URL을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.')
+  }
+
+  log.info('실행: pnpm db:migrate (Turso production)')
+  await execa('pnpm', ['db:migrate'], {
+    cwd: appDir,
+    stdio: 'inherit',
+    env: {...process.env, ...turso},
+  })
+}
+
+async function readTursoEnvFromFile(envFile: string) {
+  const content = await readFile(envFile, 'utf8')
+  const values: Record<string, string> = {}
+
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue
+    }
+
+    const separator = trimmed.indexOf('=')
+    if (separator === -1) {
+      continue
+    }
+
+    const key = trimmed.slice(0, separator).trim()
+    if (key !== 'TURSO_DATABASE_URL' && key !== 'TURSO_AUTH_TOKEN') {
+      continue
+    }
+
+    let value = trimmed.slice(separator + 1).trim()
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+
+    values[key] = value
+  }
+
+  return values
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */
