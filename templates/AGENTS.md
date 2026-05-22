@@ -68,7 +68,7 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 ### Authentication
 
 - Better Auth lives in `apps/main-app/server/auth.ts` with email/password enabled.
-- `BETTER_AUTH_URL` is the canonical base URL for auth callbacks; in development, any `localhost` / `127.0.0.1` origin is trusted regardless of port.
+- `BETTER_AUTH_URL` is the canonical base URL for auth callbacks. Omit it on Vercel to use `VERCEL_PROJECT_PRODUCTION_URL` (production) or `VERCEL_URL` (preview) at runtime. In development, any `localhost` / `127.0.0.1` origin is trusted regardless of port.
 - Add LAN or custom hosts via `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated).
 - Nitro mounts the handler at `server/routes/api/auth/[...all].ts` using `auth.handler(event.req)`.
 - Vue client: `src/lib/auth-client.ts` (`better-auth/vue`). Session cookies must be sent to oRPC (`credentials: "include"` in `src/orpc.ts`). Leave `VITE_BETTER_AUTH_URL` empty to use `window.location.origin`.
@@ -108,4 +108,4 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 
 - `apps/main-app` → Vercel.
 - Set Vercel project root to `apps/main-app` or use equivalent build settings.
-- The Vercel deployment flow provisions Turso through the Marketplace with the `starter` plan in `iad1` so it automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+- The Vercel deployment flow provisions Turso through the Marketplace with the `starter` plan in `iad1` so it automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. `create-vibe-start` sets production `BETTER_AUTH_SECRET` before the first deploy; `BETTER_AUTH_URL` comes from Vercel system env at runtime.
