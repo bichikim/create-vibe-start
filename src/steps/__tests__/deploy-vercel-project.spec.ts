@@ -7,6 +7,11 @@ const runCommandMock = vi.fn()
 const logStepMock = vi.fn()
 const logMessageMock = vi.fn()
 const fetchMock = vi.fn()
+const execaMock = vi.fn()
+
+vi.mock('execa', () => ({
+  execa: execaMock,
+}))
 
 vi.mock('node:fs/promises', () => ({
   mkdir: mkdirMock,
@@ -20,6 +25,7 @@ vi.mock('../../utils/run-command.js', () => ({
 
 vi.mock('@clack/prompts', () => ({
   log: {
+    info: vi.fn(),
     step: logStepMock,
     message: logMessageMock,
   },
@@ -27,13 +33,29 @@ vi.mock('@clack/prompts', () => ({
 
 describe('deployVercelProject', () => {
   beforeEach(() => {
-    fetchMock.mockReset().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
-    })
+    fetchMock.mockReset()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      })
     vi.stubGlobal('fetch', fetchMock)
+    execaMock.mockReset().mockResolvedValue(undefined)
     mkdirMock.mockReset().mockResolvedValue(undefined)
-    readFileMock.mockReset().mockResolvedValue('{"token":"file-token"}')
+    readFileMock.mockReset()
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
     writeFileMock.mockReset().mockResolvedValue(undefined)
     runCommandMock.mockReset().mockResolvedValue(undefined)
     logStepMock.mockReset()
@@ -109,7 +131,29 @@ describe('deployVercelProject', () => {
         target: ['production'],
       },
     ])
-    expect(runCommandMock).toHaveBeenNthCalledWith(2, 'vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      2,
+      'vercel',
+      [
+        'env',
+        'pull',
+        '/repo/my-app/apps/main-app/.env.migrate.local',
+        '--environment',
+        'production',
+        '--yes',
+      ],
+      'vercel env pull',
+      '/repo/my-app',
+    )
+    expect(execaMock).toHaveBeenCalledWith('pnpm', ['db:migrate'], {
+      cwd: '/repo/my-app/apps/main-app',
+      stdio: 'inherit',
+      env: expect.objectContaining({
+        TURSO_DATABASE_URL: 'libsql://test.turso.io',
+        TURSO_AUTH_TOKEN: 'turso-token',
+      }),
+    })
+    expect(runCommandMock).toHaveBeenNthCalledWith(3, 'vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
     expect(logStepMock).toHaveBeenCalledWith('Vercel 배포')
     expect(logMessageMock).toHaveBeenCalledWith('Vercel 배포 완료: my-app')
     expect(logMessageMock).toHaveBeenCalledWith(
@@ -119,11 +163,30 @@ describe('deployVercelProject', () => {
 
   it('uses VERCEL_TOKEN before the Vercel CLI auth file', async () => {
     process.env.VERCEL_TOKEN = 'env-token'
+    fetchMock.mockReset()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      })
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\n'
+      }
+      throw new Error('unexpected read')
+    })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
     await deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')
 
-    expect(readFileMock).not.toHaveBeenCalled()
+    expect(readFileMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('auth.json'),
+      'utf8',
+    )
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.vercel.com/v11/projects',
       expect.objectContaining({
@@ -133,6 +196,7 @@ describe('deployVercelProject', () => {
   })
 
   it('throws the Vercel API error message when Better Auth env setup fails', async () => {
+    fetchMock.mockReset()
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -142,6 +206,12 @@ describe('deployVercelProject', () => {
         ok: false,
         json: () => Promise.resolve({error: {message: 'Not authorized'}}),
       })
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
     await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
@@ -152,9 +222,16 @@ describe('deployVercelProject', () => {
   })
 
   it('throws the Vercel API error message when project creation fails', async () => {
+    fetchMock.mockReset()
     fetchMock.mockResolvedValue({
       ok: false,
       json: () => Promise.resolve({error: {message: 'GitHub integration is not installed'}}),
+    })
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
