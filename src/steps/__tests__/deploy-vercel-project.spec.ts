@@ -87,9 +87,34 @@ describe('deployVercelProject', () => {
       'vercel integration add tursocloud/database',
       '/repo/my-app',
     )
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.vercel.com/v10/projects/prj_123/env?teamId=team_123&upsert=true',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer file-token',
+          'Content-Type': 'application/json',
+        },
+        body: expect.stringMatching(/"BETTER_AUTH_SECRET"/),
+      },
+    )
+    const envBody = JSON.parse(
+      (fetchMock.mock.calls[1]?.[1] as {body: string}).body,
+    ) as Array<{key: string; value: string; type: string; target: string[]}>
+    expect(envBody).toEqual([
+      {
+        key: 'BETTER_AUTH_SECRET',
+        value: expect.stringMatching(/^[A-Za-z0-9+/]+=*$/),
+        type: 'sensitive',
+        target: ['production'],
+      },
+    ])
     expect(runCommandMock).toHaveBeenNthCalledWith(2, 'vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
     expect(logStepMock).toHaveBeenCalledWith('Vercel 배포')
     expect(logMessageMock).toHaveBeenCalledWith('Vercel 배포 완료: my-app')
+    expect(logMessageMock).toHaveBeenCalledWith(
+      'Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.',
+    )
   })
 
   it('uses VERCEL_TOKEN before the Vercel CLI auth file', async () => {
@@ -105,6 +130,25 @@ describe('deployVercelProject', () => {
         headers: expect.objectContaining({Authorization: 'Bearer env-token'}),
       }),
     )
+  })
+
+  it('throws the Vercel API error message when Better Auth env setup fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({error: {message: 'Not authorized'}}),
+      })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+      'Not authorized',
+    )
+    expect(runCommandMock).toHaveBeenCalledTimes(1)
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
   })
 
   it('throws the Vercel API error message when project creation fails', async () => {

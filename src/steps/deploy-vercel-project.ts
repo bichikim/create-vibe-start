@@ -1,3 +1,4 @@
+import {randomBytes} from 'node:crypto'
 import {mkdir, readFile, writeFile} from 'node:fs/promises'
 import {homedir} from 'node:os'
 import {join} from 'node:path'
@@ -23,9 +24,39 @@ export async function deployVercelProject(projectDir: string, projectName: strin
   const project = await createVercelProject(projectName, githubRepository)
   await writeVercelProjectLink(projectDir, project)
   await connectTursoDatabase(projectDir, projectName)
+  await setBetterAuthSecret(project)
   await runCommand('vercel', ['--prod'], 'vercel --prod', projectDir)
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
+  log.message(chalk.dim('Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.'))
+}
+
+const AUTH_SECRET_BYTES = 32
+
+function generateAuthSecret() {
+  return randomBytes(AUTH_SECRET_BYTES).toString('base64')
+}
+
+/** BETTER_AUTH_URL은 앱이 VERCEL_*로 런타임 결정하므로 production secret만 설정합니다. */
+async function setBetterAuthSecret(project: VercelProject) {
+  const response = await fetch(
+    `https://api.vercel.com/v10/projects/${project.id}/env?teamId=${project.accountId}&upsert=true`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${await vercelToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([
+        {key: 'BETTER_AUTH_SECRET', value: generateAuthSecret(), type: 'sensitive', target: ['production']},
+      ]),
+    },
+  )
+
+  const body = await response.json().catch(() => undefined) as {error?: {message?: string}}
+  if (!response.ok) {
+    throw new Error(body?.error?.message ?? 'Better Auth 환경 변수 설정에 실패했습니다.')
+  }
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */
