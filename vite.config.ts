@@ -17,7 +17,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: 'templates/**/{*,.*}',
+          src: ['templates/**/{*,.*}', '!templates/**/node_modules/**'],
           dest: 'templates',
           rename: {stripBase: 1},
         },
@@ -53,6 +53,6 @@ export default defineConfig({
       treeshake: false,
     },
     sourcemap: true,
-    target: 'node20',
+    target: 'node22',
   },
 })

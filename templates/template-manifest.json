@@ -7,10 +7,16 @@
     "from": "pnpm-workspace.yaml"
   },
   {
-    "from": "tsconfig.json"
+    "from": "pnpm-lock.yaml"
   },
   {
+    "from": "tsconfig.json"
+  },
+  {  
     "from": ".env.example"
+  },
+  {
+    "from": "vercel.json"
   },
   {
     "from": "README.md",
