@@ -16,9 +16,6 @@
     "from": ".env.example"
   },
   {
-    "from": "vercel.json"
-  },
-  {
     "from": "README.md",
     "template": true
   },
