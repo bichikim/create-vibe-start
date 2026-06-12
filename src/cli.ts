@@ -44,7 +44,7 @@ type CreatedProject = {
 export function createProgram() {
   const program = new Command()
     .name('create-vibe-start')
-    .description('Prepare GitHub, Vercel, and Codex CLI environments for vibe coding.')
+    .description('Create a new vibe-coding starter project.')
     .version(packageJson.version)
     .option('--skip-github', 'Skip GitHub CLI setup')
     .option('--skip-vercel', 'Skip Vercel CLI setup')

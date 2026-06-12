@@ -86,6 +86,10 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/drizzle.config.ts'), 'utf8')).resolves.toContain(
       "dialect: 'turso'",
     )
+    await expect(readFile(join(projectDir, 'apps/main-app/vercel.json'), 'utf8')).resolves.toContain(
+      '"buildCommand": "pnpm db:migrate && pnpm build"',
+    )
+    await expect(readFile(join(projectDir, 'vercel.json'), 'utf8')).rejects.toThrow()
     expect(logStepMock).toHaveBeenCalledWith('프로젝트 템플릿 생성')
     expect(logMessageMock).toHaveBeenCalledWith(`템플릿 파일 생성 완료: ${projectDir}`)
   })

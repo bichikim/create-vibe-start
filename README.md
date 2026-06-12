@@ -1,6 +1,6 @@
 # Create Vibe Start
 
-`create-vibe-start` is an interactive CLI onboarding tool for preparing GitHub, Vercel, and Codex command-line environments before starting AI web app development.
+`create-vibe-start` is an interactive CLI for creating a new vibe-coding starter project. It prepares GitHub, Vercel, and Codex command-line environments, copies the curated project template, installs dependencies, and can optionally create a GitHub repository, deploy to Vercel, and open Codex.
 
 The package is [published on npm](https://www.npmjs.com/package/create-vibe-start). No clone or local build is required to run it.
 
@@ -8,12 +8,12 @@ The package is [published on npm](https://www.npmjs.com/package/create-vibe-star
 
 ### No Node.js yet
 
-Each [GitHub Release](https://github.com/bichikim/create-vibe-start/releases) ships `install.sh`, `install.ps1`, and `SHA256SUMS`. CI bakes the release version into the installers (for example `vibe-start@0.1.2` and a pinned Node.js 22.x tarball on Linux). Stable releases are cut on `release/latest`; alpha prereleases on `release/alpha`.
+Each [GitHub Release](https://github.com/bichikim/create-vibe-start/releases) ships `install.sh`, `install.ps1`, and `SHA256SUMS`. CI bakes the release version into the installers (for example `vibe-start@0.1.3` and a pinned Node.js 22.x tarball on Linux). Stable releases are cut on `release/latest`; alpha prereleases on `release/alpha`.
 
 **Recommended** — download, verify checksums, then run (macOS / Linux):
 
 ```bash
-VERSION=v0.1.2
+VERSION=v0.1.3
 BASE="https://github.com/bichikim/create-vibe-start/releases/download/${VERSION}"
 curl -fsSL "${BASE}/SHA256SUMS" -o SHA256SUMS
 curl -fsSL "${BASE}/install.sh" -o install.sh
@@ -23,7 +23,7 @@ sha256sum -c SHA256SUMS && bash install.sh
 Windows (PowerShell):
 
 ```powershell
-$Version = "v0.1.2"
+$Version = "v0.1.3"
 $Base = "https://github.com/bichikim/create-vibe-start/releases/download/$Version"
 Invoke-WebRequest "$Base/SHA256SUMS" -OutFile SHA256SUMS
 Invoke-WebRequest "$Base/install.ps1" -OutFile install.ps1
@@ -33,7 +33,7 @@ if ($actual -ne $expected) { throw "Checksum mismatch for install.ps1" }
 .\install.ps1
 ```
 
-Replace `v0.1.2` with your [release tag](https://github.com/bichikim/create-vibe-start/releases). Alpha tags look like `v0.1.2-alpha.3`. The installer npm spec always matches that tag’s package version.
+Replace `v0.1.3` with your [release tag](https://github.com/bichikim/create-vibe-start/releases). Alpha tags look like `v0.1.3-alpha.3`. The installer npm spec always matches that tag’s package version.
 
 **Quick (unverified)** — same scripts, pipe directly (skips checksum verification):
 
@@ -49,7 +49,7 @@ irm https://github.com/bichikim/create-vibe-start/releases/latest/download/insta
 
 ### Already have Node.js 22+
 
-Run the onboarding flow (downloads `create-vibe-start` from npm and starts the interactive CLI):
+Run the project creation flow (downloads `create-vibe-start` from npm and starts the interactive CLI):
 
 ```bash
 npm create vibe-start
@@ -93,7 +93,7 @@ pnpm add -g create-vibe-start
 
 ## Usage
 
-Start the onboarding flow:
+Start the project creation flow:
 
 ```bash
 create-vibe-start
@@ -127,7 +127,7 @@ The reset command covers GitHub CLI, Vercel CLI, and Codex CLI setup. It removes
 
 ## Generated Project Template
 
-After the onboarding checks, the CLI asks for a project directory and writes starter files from `templates/template-manifest.json`. The current template creates a Nitro + Vue monorepo with Better Auth, oRPC, and Drizzle.
+After the tool setup checks, the CLI asks for a project name and directory, then writes starter files from `templates/template-manifest.json`. The current template creates a Nitro + Vue workspace with Better Auth, oRPC, and Drizzle.
 
 ## Development
 
@@ -247,7 +247,7 @@ Publish a new stable release the same way as alpha: bump `package.json` locally,
 
 ## CLI Flow
 
-Default `create-vibe-start` onboarding (use `--skip-github`, `--skip-vercel`, or `--skip-codex` to omit a tool setup step):
+Default `create-vibe-start` flow (use `--skip-github`, `--skip-vercel`, or `--skip-codex` to omit a tool setup step):
 
 ```txt
 Welcome

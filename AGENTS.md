@@ -1,5 +1,11 @@
 # Agent Instructions
 
+## Project Purpose
+
+This is a CLI that creates new vibe-coding projects by copying curated template content into a target project directory.
+
+The `templates/` directory is the source bundle for generated projects. Files listed in `templates/template-manifest.json` are copied into the target project; entries with `template: true` are rendered through node-plop/Handlebars before being written.
+
 ## Simplicity First
 
 Minimum code that solves the problem. Nothing speculative.
