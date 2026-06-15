@@ -389,6 +389,25 @@ describe('deployVercelProject', () => {
     await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
   })
 
+  it('reads the Vercel token from the macOS CLI auth path on darwin', async () => {
+    Object.defineProperty(process, 'platform', {value: 'darwin', configurable: true})
+    fetchMock.mockReset()
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        expect(String(path)).toContain('Library/Application Support/com.vercel.cli')
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({error: {message: 'stop'}}),
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+  })
+
   it('reads the Vercel token from XDG_DATA_HOME on other platforms', async () => {
     Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
     process.env.XDG_DATA_HOME = '/xdg-data'
