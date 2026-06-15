@@ -280,6 +280,19 @@ describe('runResetEnvironment', () => {
     )
   })
 
+  it('uses macOS Homebrew and Vercel library paths on darwin', async () => {
+    Object.defineProperty(process, 'platform', {value: 'darwin', configurable: true})
+    const {runResetEnvironment} = await import('../reset-environment')
+
+    await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
+
+    expect(logMock.info).toHaveBeenCalledWith('[dry-run] brew uninstall gh')
+    expect(logMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('Library/Application Support/com.vercel.cli'),
+    )
+    expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('Library/Caches/com.vercel.cli'))
+  })
+
   it('uses Linux-style Vercel config and cache paths outside macOS and Windows', async () => {
     Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
     const {runResetEnvironment} = await import('../reset-environment')
