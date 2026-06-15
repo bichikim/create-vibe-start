@@ -32,7 +32,22 @@ vi.mock('@clack/prompts', () => ({
 }))
 
 describe('deployVercelProject', () => {
+  const originalPlatform = process.platform
+  const originalAppData = process.env.APPDATA
+  const originalXdgDataHome = process.env.XDG_DATA_HOME
+
+  function restoreEnvVar(name: 'APPDATA' | 'XDG_DATA_HOME', value: string | undefined) {
+    if (value === undefined) {
+      delete process.env[name]
+      return
+    }
+    process.env[name] = value
+  }
+
   beforeEach(() => {
+    Object.defineProperty(process, 'platform', {value: originalPlatform, configurable: true})
+    restoreEnvVar('APPDATA', originalAppData)
+    restoreEnvVar('XDG_DATA_HOME', originalXdgDataHome)
     fetchMock.mockReset()
     fetchMock
       .mockResolvedValueOnce({
@@ -195,6 +210,36 @@ describe('deployVercelProject', () => {
     )
   })
 
+  it('parses quoted Turso env values and ignores unrelated env lines', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          '# comment',
+          'IGNORED=value',
+          'TURSO_DATABASE_URL="libsql://quoted.turso.io"',
+          "TURSO_AUTH_TOKEN='quoted-token'",
+          'BROKEN_LINE',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')
+
+    expect(execaMock).toHaveBeenCalledWith('pnpm', ['db:migrate'], {
+      cwd: '/repo/my-app/apps/main-app',
+      stdio: 'inherit',
+      env: expect.objectContaining({
+        TURSO_DATABASE_URL: 'libsql://quoted.turso.io',
+        TURSO_AUTH_TOKEN: 'quoted-token',
+      }),
+    })
+  })
+
   it('throws the Vercel API error message when Better Auth env setup fails', async () => {
     fetchMock.mockReset()
     fetchMock
@@ -221,6 +266,24 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
   })
 
+  it('uses the fallback message when Better Auth env setup returns invalid JSON', async () => {
+    fetchMock.mockReset()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.reject(new Error('invalid json')),
+      })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+      'Better Auth 환경 변수 설정에 실패했습니다.',
+    )
+  })
+
   it('throws the Vercel API error message when project creation fails', async () => {
     fetchMock.mockReset()
     fetchMock.mockResolvedValue({
@@ -239,5 +302,130 @@ describe('deployVercelProject', () => {
       'GitHub integration is not installed',
     )
     expect(runCommandMock).not.toHaveBeenCalled()
+  })
+
+  it('uses the fallback message when project creation returns invalid JSON', async () => {
+    fetchMock.mockReset()
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: () => Promise.reject(new Error('invalid json')),
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+      'Vercel 프로젝트 생성에 실패했습니다.',
+    )
+    expect(runCommandMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when the pulled production env is missing TURSO_DATABASE_URL', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+      'TURSO_DATABASE_URL을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.',
+    )
+
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      2,
+      'vercel',
+      [
+        'env',
+        'pull',
+        '/repo/my-app/apps/main-app/.env.migrate.local',
+        '--environment',
+        'production',
+        '--yes',
+      ],
+      'vercel env pull',
+      '/repo/my-app',
+    )
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+  })
+
+  it('throws a clear message when the Vercel auth file has no token', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        return '{}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+      'Vercel API 토큰을 찾을 수 없습니다. Vercel CLI에 다시 로그인해주세요.',
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalled()
+  })
+
+  it('reads the Vercel token from the Windows CLI auth path on win32', async () => {
+    Object.defineProperty(process, 'platform', {value: 'win32', configurable: true})
+    process.env.APPDATA = 'C:\\Users\\me\\AppData\\Roaming'
+    fetchMock.mockReset()
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        expect(String(path)).toContain('C:\\Users\\me\\AppData\\Roaming')
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({error: {message: 'stop'}}),
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+  })
+
+  it('reads the Vercel token from XDG_DATA_HOME on other platforms', async () => {
+    Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
+    process.env.XDG_DATA_HOME = '/xdg-data'
+    fetchMock.mockReset()
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        expect(String(path)).toContain('/xdg-data')
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({error: {message: 'stop'}}),
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+  })
+
+  it('falls back to the home data directory when XDG_DATA_HOME is unset', async () => {
+    Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
+    delete process.env.XDG_DATA_HOME
+    fetchMock.mockReset()
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).includes('auth.json')) {
+        expect(String(path)).toContain('.local/share/com.vercel.cli')
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({error: {message: 'stop'}}),
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
   })
 })

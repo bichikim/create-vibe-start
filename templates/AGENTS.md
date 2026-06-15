@@ -43,7 +43,7 @@ If you are starting from scratch, set up this environment. If the project alread
 
 ### Scripts
 
-Run standard scripts from the root, or scope app commands with `pnpm --filter @vibe-start/main-app <script>`.
+Run standard scripts from the root, or scope app commands with `pnpm --filter @<project-name>/main-app <script>`.
 
 | Script | Purpose |
 |---|---|
@@ -72,7 +72,7 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 - Add LAN or custom hosts via `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated).
 - Nitro mounts the handler at `server/routes/api/auth/[...all].ts` using `auth.handler(event.req)`.
 - Vue client: `src/lib/auth-client.ts` (`better-auth/vue`). Session cookies must be sent to oRPC (`credentials: "include"` in `src/orpc.ts`). Leave `VITE_BETTER_AUTH_URL` empty to use `window.location.origin`.
-- Regenerate auth tables with `pnpm --filter @vibe-start/main-app auth:generate` after changing the auth config.
+- Regenerate auth tables with `pnpm --filter @<project-name>/main-app auth:generate` after changing the auth config.
 
 ### Database
 
@@ -80,7 +80,7 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 - Vercel production uses Turso/libSQL with `TURSO_DATABASE_URL=libsql://...` and `TURSO_AUTH_TOKEN`.
 - Use `drizzle-orm` + `drizzle-kit`. App tables in `server/db/schema.ts` (re-exports `auth-schema.ts` + `notes`). Migrations in `apps/main-app/drizzle/`.
 - After scaffold, run `db:migrate` so Better Auth tables exist. `notes` still uses `ensureDatabase()` for the demo table.
-- Run `pnpm --filter @vibe-start/main-app db:generate` and `db:migrate` for schema changes.
+- Run `pnpm --filter @<project-name>/main-app db:generate` and `db:migrate` for schema changes.
 
 ### Testing
 
@@ -107,5 +107,6 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @v
 ### Deployment
 
 - `apps/main-app` → Vercel.
-- Set Vercel project root to `apps/main-app` or use equivalent build settings.
+- Run Vercel CLI commands from the generated project root.
+- Set the Vercel Project Root Directory to `apps/main-app`; the app-level `vercel.json` lives at `apps/main-app/vercel.json`.
 - The Vercel deployment flow provisions Turso through the Marketplace with the `starter` plan in `iad1` so it automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. `create-vibe-start` sets production `BETTER_AUTH_SECRET`, runs `db:migrate` on Turso before the first deploy, and Vercel builds run `pnpm db:migrate && pnpm build`. `BETTER_AUTH_URL` comes from Vercel system env at runtime.

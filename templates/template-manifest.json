@@ -1,53 +1,53 @@
-[
-  {
-    "from": "package.json",
-    "template": true
-  },
-  {
-    "from": "pnpm-workspace.yaml"
-  },
-  {
-    "from": "pnpm-lock.yaml"
-  },
-  {
-    "from": "tsconfig.json"
-  },
-  {  
-    "from": ".env.example"
-  },
-  {
-    "from": "vercel.json"
-  },
-  {
-    "from": "README.md",
-    "template": true
-  },
-  {
-    "from": "AGENTS.md"
-  },
-  {
-    "from": "gitignore",
-    "to": ".gitignore"
-  },
-  {
-    "from": "../.agents/skills/",
-    "to": ".agents/skills/"
-  },
-  {
-    "from": "apps/",
-    "to": "apps/"
-  },
-  {
-    "from": "apps/main-app/package.json",
-    "to": "apps/main-app/package.json",
-    "template": true
-  },
-  {
-    "from": "../.oxfmtrc.json",
-    "to": ".oxfmtrc.json"
-  },
-  {
-    "from": "../oxlint.config.ts",
-    "to": "oxlint.config.ts"
-  }
-]
+{
+  "$schema": "./template-manifest.schema.json",
+  "files": [
+    {
+      "from": "package.json",
+      "template": true
+    },
+    {
+      "from": "pnpm-workspace.yaml"
+    },
+    {
+      "from": "pnpm-lock.yaml"
+    },
+    {
+      "from": "tsconfig.json"
+    },
+    {
+      "from": ".env.example"
+    },
+    {
+      "from": "README.md",
+      "template": true
+    },
+    {
+      "from": "AGENTS.md"
+    },
+    {
+      "from": "gitignore",
+      "to": ".gitignore"
+    },
+    {
+      "from": "../.agents/skills/",
+      "to": ".agents/skills/"
+    },
+    {
+      "from": "apps/",
+      "to": "apps/"
+    },
+    {
+      "from": "apps/main-app/package.json",
+      "to": "apps/main-app/package.json",
+      "template": true
+    },
+    {
+      "from": "../.oxfmtrc.json",
+      "to": ".oxfmtrc.json"
+    },
+    {
+      "from": "../oxlint.config.ts",
+      "to": "oxlint.config.ts"
+    }
+  ]
+}

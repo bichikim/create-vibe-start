@@ -58,6 +58,18 @@ describe('run-command utilities', () => {
     })
   })
 
+  it('runs quiet commands from a working directory when provided', async () => {
+    const {runCommandQuietly} = await import('../run-command')
+
+    await runCommandQuietly('gh', ['repo', 'view'], '/repo')
+
+    expect(execaMock).toHaveBeenCalledWith('gh', ['repo', 'view'], {
+      stdio: 'pipe',
+      preferLocal: false,
+      cwd: '/repo',
+    })
+  })
+
   it('runs commands from a working directory when provided', async () => {
     const {runCommand} = await import('../run-command')
 
@@ -83,5 +95,18 @@ describe('run-command utilities', () => {
     })
     expect(subprocessOnMock).toHaveBeenCalledWith('error', expect.any(Function))
     expect(subprocessUnrefMock).toHaveBeenCalledOnce()
+  })
+
+  it('warns when a background command fails to start', async () => {
+    const {runCommandInBackground} = await import('../run-command')
+
+    runCommandInBackground('pnpm', ['run', 'dev'], 'pnpm run dev')
+    const errorHandler = subprocessOnMock.mock.calls.find(([event]) => event === 'error')?.[1] as
+      | ((error: Error) => void)
+      | undefined
+
+    errorHandler?.(new Error('spawn failed'))
+
+    expect(logWarnMock).toHaveBeenCalledWith('pnpm run dev 백그라운드 실행 실패: spawn failed')
   })
 })

@@ -40,4 +40,12 @@ describe('showComplete', () => {
     expect(logMessageMock).toHaveBeenCalledWith(expect.stringContaining('Codex'))
     expect(outroMock).toHaveBeenCalledWith('완료되지 않은 단계가 있습니다. 필요할 때 다시 실행해주세요.')
   })
+
+  it('prints failed steps with the failure marker', async () => {
+    const {showComplete} = await import('../complete')
+
+    showComplete([{name: 'Vercel', status: 'failed', message: 'Vercel 로그인 실패'}])
+
+    expect(logMessageMock).toHaveBeenCalledWith(expect.stringContaining('! Vercel'))
+  })
 })

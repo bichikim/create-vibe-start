@@ -136,4 +136,11 @@ describe('launchCodexApp', () => {
       {name: 'Codex', status: 'ready', message: CODEX_READY_WITH_APP_MESSAGE},
     ])
   })
+
+  it('keeps setup results unchanged when Codex app was not launched', async () => {
+    const {withCodexAppReadyMessage} = await import('../launch-codex-app')
+    const results = [{name: 'Codex', status: 'ready' as const, message: 'Codex CLI 사용 가능'}]
+
+    expect(withCodexAppReadyMessage(results, false)).toBe(results)
+  })
 })

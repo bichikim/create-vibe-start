@@ -138,6 +138,40 @@ describe('setupCodex', () => {
     expect(config).toContain('[plugins."github@openai-curated"]\nenabled = true')
   })
 
+  it('adds the official marketplace when listing marketplaces fails', async () => {
+    setupToolMock.mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
+    runCommandQuietlyMock.mockRejectedValue(new Error('list failed'))
+    const {setupCodex} = await import('../setup-codex')
+
+    await setupCodex()
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      'codex',
+      ['plugin', 'marketplace', 'add', 'openai/plugins'],
+      'codex plugin marketplace add openai/plugins',
+    )
+  })
+
+  it('warns without failing when default plugin setup fails', async () => {
+    setupToolMock.mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
+    runCommandMock.mockRejectedValue(new Error('marketplace unavailable'))
+    const {setupCodex} = await import('../setup-codex')
+
+    await expect(setupCodex()).resolves.toEqual({name: 'Codex', status: 'ready', message: 'ok'})
+
+    expect(logWarnMock).toHaveBeenCalledWith('Codex 기본 플러그인 설치 실패: marketplace unavailable')
+  })
+
+  it('formats non-Error default plugin setup failures', async () => {
+    setupToolMock.mockResolvedValue({name: 'Codex', status: 'ready', message: 'ok'})
+    runCommandMock.mockRejectedValue('marketplace unavailable')
+    const {setupCodex} = await import('../setup-codex')
+
+    await expect(setupCodex()).resolves.toEqual({name: 'Codex', status: 'ready', message: 'ok'})
+
+    expect(logWarnMock).toHaveBeenCalledWith('Codex 기본 플러그인 설치 실패: marketplace unavailable')
+  })
+
   it('does not duplicate existing plugin config blocks', async () => {
     const configPath = path.join(homeDir, '.codex', 'config.toml')
     await mkdir(path.dirname(configPath), {recursive: true})
@@ -149,6 +183,38 @@ describe('setupCodex', () => {
     const config = await readFile(configPath, 'utf8')
     expect(config.match(/\[plugins\."github@openai-curated"\]/g)).toHaveLength(1)
     expect(config).toContain('[plugins."vercel@openai-curated"]\nenabled = true')
+  })
+
+  it('does not rewrite the config when all default plugin blocks already exist', async () => {
+    const configPath = path.join(homeDir, '.codex', 'config.toml')
+    await mkdir(path.dirname(configPath), {recursive: true})
+    await writeFile(
+      configPath,
+      [
+        '[plugins."github@openai-curated"]',
+        'enabled = true',
+        '[plugins."vercel@openai-curated"]',
+        'enabled = true',
+        '[plugins."openai-developers@openai-curated"]',
+        'enabled = true',
+        '[plugins."build-web-apps@openai-curated"]',
+        'enabled = true',
+      ].join('\n'),
+    )
+    const {enableDefaultPlugins} = await import('../setup-codex')
+
+    await enableDefaultPlugins(configPath)
+
+    const config = await readFile(configPath, 'utf8')
+    expect(config.match(/\[plugins\./g)).toHaveLength(4)
+  })
+
+  it('rethrows non-missing config read errors', async () => {
+    const configPath = path.join(homeDir, 'config-as-directory')
+    await mkdir(configPath)
+    const {enableDefaultPlugins} = await import('../setup-codex')
+
+    await expect(enableDefaultPlugins(configPath)).rejects.toThrow()
   })
 
   afterEach(async () => {
