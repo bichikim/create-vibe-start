@@ -33,3 +33,9 @@ Removed the `npm i` fallback. If `pnpm` is missing, `installDependencies` now us
 Status: done
 
 Added `@vitest/coverage-v8`, `pnpm coverage`, 100% coverage thresholds, ignored generated `coverage/`, and filled priority test gaps.
+
+## Done: Add PR CI for quality gates
+
+Status: done
+
+Added a pull request workflow that runs `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm coverage`, and `pnpm build`.
