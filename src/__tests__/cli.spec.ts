@@ -161,6 +161,17 @@ describe('CLI program', () => {
     expect(showCompleteMock).toHaveBeenCalledWith([{name: 'Vercel', status: 'ready', message: 'ok'}])
   })
 
+  it('honors skip-vercel without skipping the other setup steps', async () => {
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start', '--skip-vercel'])
+
+    expect(setupGitHubMock).toHaveBeenCalledOnce()
+    expect(setupVercelMock).not.toHaveBeenCalled()
+    expect(setupCodexMock).toHaveBeenCalledOnce()
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
+  })
+
   it('passes the project-dir option as the default project directory', async () => {
     const {runCli} = await import('../cli')
 
@@ -311,5 +322,27 @@ describe('CLI program', () => {
 
     expect(runResetEnvironmentMock).toHaveBeenCalledWith({yes: true})
     expect(process.exitCode).toBe(1)
+  })
+
+  it('prints unexpected onboarding errors and exits with failure', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    generateTemplateMock.mockRejectedValue(new Error('template failed'))
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('template failed')
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('prints a fallback message for non-Error onboarding failures', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    generateTemplateMock.mockRejectedValue('boom')
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('알 수 없는 오류가 발생했습니다.')
+    expect(exitSpy).toHaveBeenCalledWith(1)
   })
 })

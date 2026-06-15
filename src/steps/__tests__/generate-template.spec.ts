@@ -14,10 +14,21 @@ vi.mock('@clack/prompts', () => ({
 }))
 
 describe('resolveDefaultTemplateDir', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('uses repo-root templates in development', async () => {
     const {resolveDefaultTemplateDir} = await import('../generate-template')
 
     expect(resolveDefaultTemplateDir()).toBe('templates')
+  })
+
+  it('uses the bundled templates directory in production', async () => {
+    vi.stubEnv('PROD', true)
+    const {resolveDefaultTemplateDir} = await import('../generate-template')
+
+    expect(resolveDefaultTemplateDir('file:///repo/dist/cli.js')).toBe('/repo/dist/templates')
   })
 })
 
@@ -127,5 +138,64 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
     expect(appPackageJson.name).toBe('@my-app/main-app')
+  })
+
+  it('renders template directories from the manifest', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(join(templateDir, 'snippets'), {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      `${JSON.stringify({files: [{from: 'snippets', to: 'copied', template: true}]})}\n`,
+    )
+    await writeFile(join(templateDir, 'snippets', 'hello.txt'), 'Hello {{projectName}}\n')
+    const {generateTemplate} = await import('../generate-template')
+
+    await generateTemplate(projectDir, {projectName: 'my-app'}, templateDir)
+
+    await expect(readFile(join(projectDir, 'copied', 'hello.txt'), 'utf8')).resolves.toBe('Hello my-app\n')
+  })
+
+  it('renders template directories to their source path when to is omitted', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(join(templateDir, 'snippets'), {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      `${JSON.stringify({files: [{from: 'snippets', template: true}]})}\n`,
+    )
+    await writeFile(join(templateDir, 'snippets', 'hello.txt'), 'Hello {{projectName}}\n')
+    const {generateTemplate} = await import('../generate-template')
+
+    await generateTemplate(projectDir, {projectName: 'my-app'}, templateDir)
+
+    await expect(readFile(join(projectDir, 'snippets', 'hello.txt'), 'utf8')).resolves.toBe('Hello my-app\n')
+  })
+
+  it('treats a missing template source as a file action and reports the failure', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      `${JSON.stringify({files: [{from: 'missing.txt', template: true}]})}\n`,
+    )
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow()
+  })
+
+  it('throws plop failure messages', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      `${JSON.stringify({files: [{from: 'broken.txt', template: true}]})}\n`,
+    )
+    await writeFile(join(templateDir, 'broken.txt'), '{{#if}}\n')
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow()
   })
 })

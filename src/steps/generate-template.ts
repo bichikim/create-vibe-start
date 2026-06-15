@@ -11,6 +11,10 @@ type TemplateFile = {
   template?: boolean
 }
 
+type TemplateManifest = {
+  files: TemplateFile[]
+}
+
 export type Answers = Record<string, unknown>
 
 const defaultManifestFileName = 'template-manifest.json'
@@ -41,9 +45,9 @@ export async function generateTemplate(
   log.step(chalk.bold('프로젝트 템플릿 생성'))
 
   const manifestPath = join(templateDir, manifestFileName)
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as TemplateFile[]
+  const {files} = JSON.parse(await readFile(manifestPath, 'utf8')) as TemplateManifest
   await Promise.all(
-    manifest
+    files
       .filter((file) => !file.template)
       .map((file) => {
         const source = join(templateDir, file.from)
@@ -54,7 +58,7 @@ export async function generateTemplate(
   )
 
   const actions = await Promise.all(
-    manifest.filter((file) => file.template).map(async (file) => {
+    files.filter((file) => file.template).map(async (file) => {
       const source = join(templateDir, file.from)
       const isDirectory = await stat(source).then((info) => info.isDirectory(), () => false)
       if (isDirectory) {
@@ -85,6 +89,8 @@ export async function generateTemplate(
   const result = await generator.runActions({...defaultAnswers, ...answers})
 
   if (result.failures.length > 0) {
+    // Ignored because node-plop normally provides `error`; `message` is only a defensive fallback.
+    /* v8 ignore next */
     throw new Error(result.failures.map((failure) => failure.error || failure.message).join('\n'))
   }
 

@@ -198,6 +198,8 @@ export async function runCli(argv = process.argv) {
   await createProgram().parseAsync(argv)
 }
 
+// Ignored because this guard is only exercised by executing the built CLI as a separate Node process.
+/* v8 ignore next 3 */
 if (process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href) {
   await runCli()
 }
