@@ -31,6 +31,12 @@ type CliOptions = {
   projectDir?: string
 }
 
+type RepairOptions = {
+  dir: string
+  githubRepository?: string
+  projectName: string
+}
+
 type CreatedProject = {
   projectDir: string
   projectName: string
@@ -114,6 +120,28 @@ export function createProgram() {
       }
     })
 
+  const repairCommand = program
+    .command('repair')
+    .description('Repair partial setup failures.')
+
+  repairCommand
+    .command('vercel')
+    .description('Repair Vercel setup for an existing generated project.')
+    .requiredOption('--dir <path>', 'Generated project directory')
+    .requiredOption('--project-name <name>', 'Vercel project name')
+    .option('--github-repository <owner/name>', 'GitHub repository to connect when no Vercel link exists')
+    .action(async (options: RepairOptions) => {
+      try {
+        await deployVercelProject(options.dir, options.projectName, {
+          githubRepository: options.githubRepository,
+        })
+      } catch (error) {
+        outro(chalk.red(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'))
+        process.exit(1)
+        return
+      }
+    })
+
   program
     .command('reset')
     .description('Reset GitHub, Vercel, and Codex CLI installs and auth files.')
@@ -172,7 +200,7 @@ async function maybeDeployVercelProject(
   })
 
   if (!isCancel(shouldDeployVercelProject) && shouldDeployVercelProject) {
-    await deployVercelProject(createdProject.projectDir, createdProject.projectName, githubRepository)
+    await deployVercelProject(createdProject.projectDir, createdProject.projectName, {githubRepository})
   }
 }
 

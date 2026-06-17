@@ -111,6 +111,18 @@ Show reset command options:
 create-vibe-start reset --help
 ```
 
+Repair Vercel setup for an existing generated project:
+
+```bash
+create-vibe-start repair vercel --dir ./my-app --project-name my-app
+```
+
+If the project is not linked to Vercel yet, pass the GitHub repository too:
+
+```bash
+create-vibe-start repair vercel --dir ./my-app --project-name my-app --github-repository owner/my-app
+```
+
 Reset local CLI installs and auth/config files:
 
 ```bash

@@ -81,7 +81,7 @@ describe('deployVercelProject', () => {
   it('creates a Git-connected Vercel project, writes local link metadata, and deploys to production', async () => {
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
 
     expect(fetchMock).toHaveBeenCalledWith('https://api.vercel.com/v11/projects', {
       method: 'POST',
@@ -176,6 +176,89 @@ describe('deployVercelProject', () => {
     )
   })
 
+  it('reuses an existing Vercel project link when deploying an existing project', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_linked","projectId":"prj_linked"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app')
+
+    expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
+    expect(mkdirMock).not.toHaveBeenCalled()
+    expect(writeFileMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({Authorization: 'Bearer file-token'}),
+      }),
+    )
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      1,
+      'vercel',
+      [
+        'integration',
+        'add',
+        'tursocloud/database',
+        '--name',
+        'my-app',
+        '--metadata',
+        'region=iad1',
+        '--plan',
+        'starter',
+        '--environment',
+        'production',
+        '--no-env-pull',
+      ],
+      'vercel integration add tursocloud/database',
+      '/repo/my-app',
+    )
+    expect(logMessageMock).toHaveBeenCalledWith('기존 Vercel 프로젝트 링크를 재사용합니다.')
+  })
+
+  it('requires a GitHub repository when no Vercel project link exists', async () => {
+    const notFound = Object.assign(new Error('missing'), {code: 'ENOENT'})
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw notFound
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow(
+      '기존 Vercel 링크가 없으면 --github-repository owner/name 이 필요합니다.',
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when the existing Vercel project link is invalid', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"projectId":"prj_linked"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow(
+      'Vercel 프로젝트 링크 파일이 올바르지 않습니다.',
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalled()
+  })
+
   it('uses VERCEL_TOKEN before the Vercel CLI auth file', async () => {
     process.env.VERCEL_TOKEN = 'env-token'
     fetchMock.mockReset()
@@ -196,7 +279,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
 
     expect(readFileMock).not.toHaveBeenCalledWith(
       expect.stringContaining('auth.json'),
@@ -228,7 +311,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
 
     expect(execaMock).toHaveBeenCalledWith('pnpm', ['db:migrate'], {
       cwd: '/repo/my-app/apps/main-app',
@@ -259,7 +342,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'Not authorized',
     )
     expect(runCommandMock).toHaveBeenCalledTimes(1)
@@ -279,7 +362,7 @@ describe('deployVercelProject', () => {
       })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'Better Auth 환경 변수 설정에 실패했습니다.',
     )
   })
@@ -298,7 +381,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'GitHub integration is not installed',
     )
     expect(runCommandMock).not.toHaveBeenCalled()
@@ -312,7 +395,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'Vercel 프로젝트 생성에 실패했습니다.',
     )
     expect(runCommandMock).not.toHaveBeenCalled()
@@ -330,7 +413,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'TURSO_DATABASE_URL을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.',
     )
 
@@ -361,7 +444,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow(
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'Vercel API 토큰을 찾을 수 없습니다. Vercel CLI에 다시 로그인해주세요.',
     )
 
@@ -386,7 +469,9 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+    await expect(
+      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
+    ).rejects.toThrow('stop')
   })
 
   it('reads the Vercel token from the macOS CLI auth path on darwin', async () => {
@@ -405,7 +490,9 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+    await expect(
+      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
+    ).rejects.toThrow('stop')
   })
 
   it('reads the Vercel token from XDG_DATA_HOME on other platforms', async () => {
@@ -425,7 +512,9 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+    await expect(
+      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
+    ).rejects.toThrow('stop')
   })
 
   it('falls back to the home data directory when XDG_DATA_HOME is unset', async () => {
@@ -445,6 +534,8 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app', 'bichikim/my-app')).rejects.toThrow('stop')
+    await expect(
+      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
+    ).rejects.toThrow('stop')
   })
 })

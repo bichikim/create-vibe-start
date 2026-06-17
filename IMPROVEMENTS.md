@@ -6,11 +6,19 @@ Status: done
 
 Changed `templates/template-manifest.json` to `{ "$schema", "files" }`, added `templates/template-manifest.schema.json`, and updated `generateTemplate` to read `manifest.files`.
 
+## Done: Add Vercel setup repair for partial failures
+
+Status: done
+
+Added `create-vibe-start repair vercel` for recovering Vercel/Turso setup on an existing generated project, with `.vercel/project.json` reuse and mocked tests.
+
 ## Backlog: Validate template manifest entries at runtime
 
 Status: paused
 
 The CLI still reads `templates/template-manifest.json` with `JSON.parse` and casts the result to the expected TypeScript shape. If the packaged manifest is malformed, missing `files`, has an invalid entry, or points at a missing source path, the user may still see a lower-level copy/stat/plop failure during `generateTemplate`.
+
+Paused because `template-manifest.json` is an internal packaged file, not user-authored input. Runtime validation is likely unnecessary as long as tests cover the manifest before release.
 
 Suggested implementation when resumed:
 
