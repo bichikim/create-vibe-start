@@ -12,18 +12,25 @@ type VercelProject = {
   accountId: string
 }
 
+type DeployVercelProjectOptions = {
+  githubRepository?: string
+}
+
 /**
  * 생성된 메인 앱을 GitHub 연동 Vercel 프로젝트로 만들고 프로덕션으로 배포합니다.
  *
  * @param projectDir - 생성된 프로젝트 루트 폴더입니다.
  * @param projectName - 연결할 Vercel 프로젝트 이름입니다.
- * @param githubRepository - GitHub 저장소의 owner/name 형식 이름입니다.
+ * @param options - 기존 Vercel 링크가 없을 때 사용할 GitHub 저장소 정보입니다.
  */
-export async function deployVercelProject(projectDir: string, projectName: string, githubRepository: string) {
+export async function deployVercelProject(
+  projectDir: string,
+  projectName: string,
+  options: DeployVercelProjectOptions = {},
+) {
   log.step(chalk.bold('Vercel 배포'))
 
-  const project = await createVercelProject(projectName, githubRepository)
-  await writeVercelProjectLink(projectDir, project)
+  const project = await resolveVercelProject(projectDir, projectName, options.githubRepository)
   await connectTursoDatabase(projectDir, projectName)
   await setBetterAuthSecret(project)
   await migrateTursoDatabase(projectDir)
@@ -31,6 +38,43 @@ export async function deployVercelProject(projectDir: string, projectName: strin
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
   log.message(chalk.dim('Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.'))
+}
+
+async function resolveVercelProject(projectDir: string, projectName: string, githubRepository: string | undefined) {
+  if (githubRepository) {
+    const project = await createVercelProject(projectName, githubRepository)
+    await writeVercelProjectLink(projectDir, project)
+    return project
+  }
+
+  const linkedProject = await readVercelProjectLink(projectDir)
+  if (!linkedProject) {
+    throw new Error('기존 Vercel 링크가 없으면 --github-repository owner/name 이 필요합니다.')
+  }
+
+  log.message(chalk.dim('기존 Vercel 프로젝트 링크를 재사용합니다.'))
+  return linkedProject
+}
+
+async function readVercelProjectLink(projectDir: string): Promise<VercelProject | null> {
+  try {
+    const projectJson = JSON.parse(await readFile(vercelProjectLinkPath(projectDir), 'utf8')) as {
+      orgId?: string
+      projectId?: string
+    }
+
+    if (!projectJson.orgId || !projectJson.projectId) {
+      throw new Error('Vercel 프로젝트 링크 파일이 올바르지 않습니다.')
+    }
+
+    return {accountId: projectJson.orgId, id: projectJson.projectId}
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+
+    throw error
+  }
 }
 
 const AUTH_SECRET_BYTES = 32
@@ -194,9 +238,13 @@ async function writeVercelProjectLink(appDir: string, project: VercelProject) {
   const vercelDir = join(appDir, '.vercel')
   await mkdir(vercelDir, {recursive: true})
   await writeFile(
-    join(vercelDir, 'project.json'),
+    vercelProjectLinkPath(appDir),
     `${JSON.stringify({orgId: project.accountId, projectId: project.id}, null, 2)}\n`,
   )
+}
+
+function vercelProjectLinkPath(projectDir: string) {
+  return join(projectDir, '.vercel', 'project.json')
 }
 
 /** 현재 플랫폼의 Vercel CLI 설정 폴더 경로를 반환합니다. */
