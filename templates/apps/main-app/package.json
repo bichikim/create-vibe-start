@@ -5,7 +5,13 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
+    "mobile:build": "vite build --config vite.mobile.config.ts",
     "preview": "node .output/server/index.mjs",
+    "cap:sync": "cap sync",
+    "ios:dev": "CAP_SERVER_URL=http://localhost:3000 cap run ios",
+    "android:dev": "CAP_SERVER_URL=http://10.0.2.2:3000 cap run android",
+    "ios:build": "pnpm mobile:build && cap sync ios && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' build",
+    "android:build": "pnpm mobile:build && cap sync android && cd android && ./gradlew assembleDebug",
     "lint": "oxlint .",
     "format": "oxfmt .",
     "typecheck": "vue-tsc --noEmit",
@@ -17,6 +23,7 @@
     "auth:generate": "better-auth generate --config ./server/auth.ts --output ./server/db/auth-schema.ts -y"
   },
   "dependencies": {
+    "@capacitor/core": "catalog:",
     "@libsql/client": "catalog:",
     "better-auth": "catalog:",
     "@pinia/colada": "catalog:",
@@ -38,6 +45,9 @@
   },
   "devDependencies": {
     "@better-auth/cli": "catalog:",
+    "@capacitor/android": "catalog:",
+    "@capacitor/cli": "catalog:",
+    "@capacitor/ios": "catalog:",
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",
     "typescript": "catalog:",
