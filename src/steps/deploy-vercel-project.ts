@@ -1,5 +1,5 @@
 import {randomBytes} from 'node:crypto'
-import {mkdir, readFile, writeFile} from 'node:fs/promises'
+import {access, mkdir, readFile, writeFile} from 'node:fs/promises'
 import {homedir} from 'node:os'
 import {join} from 'node:path'
 import {log} from '@clack/prompts'
@@ -28,6 +28,8 @@ export async function deployVercelProject(
   projectName: string,
   options: DeployVercelProjectOptions = {},
 ) {
+  await assertGeneratedProjectRoot(projectDir)
+
   log.step(chalk.bold('Vercel 배포'))
 
   const project = await resolveVercelProject(projectDir, projectName, options.githubRepository)
@@ -40,20 +42,32 @@ export async function deployVercelProject(
   log.message(chalk.dim('Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.'))
 }
 
+async function assertGeneratedProjectRoot(projectDir: string) {
+  try {
+    await access(join(projectDir, 'apps/main-app/package.json'))
+  } catch {
+    throw new Error('생성된 프로젝트 루트가 아닙니다. --dir에는 create-vibe-start 프로젝트 루트를 지정해주세요.')
+  }
+}
+
 async function resolveVercelProject(projectDir: string, projectName: string, githubRepository: string | undefined) {
-  if (githubRepository) {
-    const project = await createVercelProject(projectName, githubRepository)
-    await writeVercelProjectLink(projectDir, project)
-    return project
+  const linkedProject = await readVercelProjectLink(projectDir)
+  if (linkedProject) {
+    if (githubRepository) {
+      log.warn('기존 Vercel 프로젝트 링크를 재사용하므로 --github-repository 옵션은 무시합니다.')
+    }
+
+    log.message(chalk.dim('기존 Vercel 프로젝트 링크를 재사용합니다.'))
+    return linkedProject
   }
 
-  const linkedProject = await readVercelProjectLink(projectDir)
-  if (!linkedProject) {
+  if (!githubRepository) {
     throw new Error('기존 Vercel 링크가 없으면 --github-repository owner/name 이 필요합니다.')
   }
 
-  log.message(chalk.dim('기존 Vercel 프로젝트 링크를 재사용합니다.'))
-  return linkedProject
+  const project = await createVercelProject(projectName, githubRepository)
+  await writeVercelProjectLink(projectDir, project)
+  return project
 }
 
 async function readVercelProjectLink(projectDir: string): Promise<VercelProject | null> {

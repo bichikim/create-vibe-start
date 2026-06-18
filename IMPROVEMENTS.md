@@ -1,5 +1,23 @@
 # Improvement Log
 
+## Done: Validate Vercel repair project root
+
+Status: done
+
+`repair vercel` now checks for `apps/main-app/package.json` before external Vercel/Turso setup.
+
+## Done: Preserve existing Vercel repair links
+
+Status: done
+
+`repair vercel` now reuses an existing `.vercel/project.json` before `--github-repository` and warns when that option is ignored.
+
+## Backlog: Prompt before overwriting Vercel repair links
+
+Status: paused
+
+Paused because repair should stay script-friendly; explicit reuse plus a warning is enough for now.
+
 ## Done: Add a JSON Schema for the template manifest
 
 Status: done
