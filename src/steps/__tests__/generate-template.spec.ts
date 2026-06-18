@@ -137,7 +137,18 @@ describe('generateTemplate', () => {
     expect(appPackageJson.dependencies).toMatchObject({['better-auth']: 'catalog:'})
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
+    expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
+    expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
+    await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
+      "appName: 'my-app'",
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/ios/App/App/Info.plist'), 'utf8')).resolves.toContain(
+      '<string>my-app</string>',
+    )
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
+    ).resolves.toContain('<string name="app_name">my-app</string>')
   })
 
   it('renders template directories from the manifest', async () => {

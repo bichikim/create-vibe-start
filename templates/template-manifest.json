@@ -42,6 +42,21 @@
       "template": true
     },
     {
+      "from": "apps/main-app/capacitor.config.ts",
+      "to": "apps/main-app/capacitor.config.ts",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/ios/App/App/Info.plist",
+      "to": "apps/main-app/ios/App/App/Info.plist",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/src/main/res/values/strings.xml",
+      "to": "apps/main-app/android/app/src/main/res/values/strings.xml",
+      "template": true
+    },
+    {
       "from": "../.oxfmtrc.json",
       "to": ".oxfmtrc.json"
     },
