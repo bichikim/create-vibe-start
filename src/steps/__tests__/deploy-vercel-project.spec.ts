@@ -1,11 +1,13 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
+const accessMock = vi.fn()
 const mkdirMock = vi.fn()
 const readFileMock = vi.fn()
 const writeFileMock = vi.fn()
 const runCommandMock = vi.fn()
 const logStepMock = vi.fn()
 const logMessageMock = vi.fn()
+const logWarnMock = vi.fn()
 const fetchMock = vi.fn()
 const execaMock = vi.fn()
 
@@ -14,6 +16,7 @@ vi.mock('execa', () => ({
 }))
 
 vi.mock('node:fs/promises', () => ({
+  access: accessMock,
   mkdir: mkdirMock,
   readFile: readFileMock,
   writeFile: writeFileMock,
@@ -28,6 +31,7 @@ vi.mock('@clack/prompts', () => ({
     info: vi.fn(),
     step: logStepMock,
     message: logMessageMock,
+    warn: logWarnMock,
   },
 }))
 
@@ -35,6 +39,10 @@ describe('deployVercelProject', () => {
   const originalPlatform = process.platform
   const originalAppData = process.env.APPDATA
   const originalXdgDataHome = process.env.XDG_DATA_HOME
+
+  function missingVercelProjectLink() {
+    return Object.assign(new Error('missing'), {code: 'ENOENT'})
+  }
 
   function restoreEnvVar(name: 'APPDATA' | 'XDG_DATA_HOME', value: string | undefined) {
     if (value === undefined) {
@@ -57,12 +65,16 @@ describe('deployVercelProject', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({}),
-      })
+    })
     vi.stubGlobal('fetch', fetchMock)
+    accessMock.mockReset().mockResolvedValue(undefined)
     execaMock.mockReset().mockResolvedValue(undefined)
     mkdirMock.mockReset().mockResolvedValue(undefined)
     readFileMock.mockReset()
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).endsWith('.env.migrate.local')) {
         return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
       }
@@ -75,6 +87,7 @@ describe('deployVercelProject', () => {
     runCommandMock.mockReset().mockResolvedValue(undefined)
     logStepMock.mockReset()
     logMessageMock.mockReset()
+    logWarnMock.mockReset()
     delete process.env.VERCEL_TOKEN
   })
 
@@ -83,6 +96,7 @@ describe('deployVercelProject', () => {
 
     await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
 
+    expect(accessMock).toHaveBeenCalledWith('/repo/my-app/apps/main-app/package.json')
     expect(fetchMock).toHaveBeenCalledWith('https://api.vercel.com/v11/projects', {
       method: 'POST',
       headers: {
@@ -176,6 +190,22 @@ describe('deployVercelProject', () => {
     )
   })
 
+  it('rejects a directory that is not a generated project root before external setup', async () => {
+    accessMock.mockRejectedValue(new Error('missing'))
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(
+      deployVercelProject('/repo/wrong-dir', 'my-app', {githubRepository: 'bichikim/my-app'}),
+    ).rejects.toThrow(
+      '생성된 프로젝트 루트가 아닙니다. --dir에는 create-vibe-start 프로젝트 루트를 지정해주세요.',
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalled()
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(logStepMock).not.toHaveBeenCalled()
+  })
+
   it('reuses an existing Vercel project link when deploying an existing project', async () => {
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {
@@ -226,11 +256,42 @@ describe('deployVercelProject', () => {
     expect(logMessageMock).toHaveBeenCalledWith('기존 Vercel 프로젝트 링크를 재사용합니다.')
   })
 
-  it('requires a GitHub repository when no Vercel project link exists', async () => {
-    const notFound = Object.assign(new Error('missing'), {code: 'ENOENT'})
+  it('warns and reuses an existing Vercel link when a GitHub repository is also provided', async () => {
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {
-        throw notFound
+        return '{"orgId":"team_linked","projectId":"prj_linked"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
+
+    expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
+    expect(mkdirMock).not.toHaveBeenCalled()
+    expect(writeFileMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({Authorization: 'Bearer file-token'}),
+      }),
+    )
+    expect(logWarnMock).toHaveBeenCalledWith(
+      '기존 Vercel 프로젝트 링크를 재사용하므로 --github-repository 옵션은 무시합니다.',
+    )
+  })
+
+  it('requires a GitHub repository when no Vercel project link exists', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
       }
       return ''
     })
@@ -270,8 +331,11 @@ describe('deployVercelProject', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({}),
-      })
+    })
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).endsWith('.env.migrate.local')) {
         return 'TURSO_DATABASE_URL=libsql://test.turso.io\n'
       }
@@ -295,6 +359,9 @@ describe('deployVercelProject', () => {
 
   it('parses quoted Turso env values and ignores unrelated env lines', async () => {
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).endsWith('.env.migrate.local')) {
         return [
           '# comment',
@@ -333,8 +400,11 @@ describe('deployVercelProject', () => {
       .mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({error: {message: 'Not authorized'}}),
-      })
+    })
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         return '{"token":"file-token"}'
       }
@@ -374,6 +444,9 @@ describe('deployVercelProject', () => {
       json: () => Promise.resolve({error: {message: 'GitHub integration is not installed'}}),
     })
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         return '{"token":"file-token"}'
       }
@@ -403,6 +476,9 @@ describe('deployVercelProject', () => {
 
   it('throws when the pulled production env is missing TURSO_DATABASE_URL', async () => {
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).endsWith('.env.migrate.local')) {
         return 'TURSO_AUTH_TOKEN=turso-token\n'
       }
@@ -437,6 +513,9 @@ describe('deployVercelProject', () => {
 
   it('throws a clear message when the Vercel auth file has no token', async () => {
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         return '{}'
       }
@@ -457,6 +536,9 @@ describe('deployVercelProject', () => {
     process.env.APPDATA = 'C:\\Users\\me\\AppData\\Roaming'
     fetchMock.mockReset()
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         expect(String(path)).toContain('C:\\Users\\me\\AppData\\Roaming')
         return '{"token":"file-token"}'
@@ -478,6 +560,9 @@ describe('deployVercelProject', () => {
     Object.defineProperty(process, 'platform', {value: 'darwin', configurable: true})
     fetchMock.mockReset()
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         expect(String(path)).toContain('Library/Application Support/com.vercel.cli')
         return '{"token":"file-token"}'
@@ -500,6 +585,9 @@ describe('deployVercelProject', () => {
     process.env.XDG_DATA_HOME = '/xdg-data'
     fetchMock.mockReset()
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         expect(String(path)).toContain('/xdg-data')
         return '{"token":"file-token"}'
@@ -522,6 +610,9 @@ describe('deployVercelProject', () => {
     delete process.env.XDG_DATA_HOME
     fetchMock.mockReset()
     readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
       if (String(path).includes('auth.json')) {
         expect(String(path)).toContain('.local/share/com.vercel.cli')
         return '{"token":"file-token"}'
