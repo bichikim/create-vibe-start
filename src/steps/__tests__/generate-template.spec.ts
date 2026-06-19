@@ -141,9 +141,23 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
-    expect(appPackageJson.scripts['ios:dev']).toBe('node scripts/run-ios.mjs dev')
-    expect(appPackageJson.scripts['ios:build']).toBe('node scripts/run-ios.mjs build')
-    await expect(readFile(join(projectDir, 'apps/main-app/scripts/run-ios.mjs'), 'utf8')).resolves.toContain(
+    const iosBuildCommand = [
+      'pnpm mobile:build',
+      'cap sync ios',
+      [
+        'node scripts/with-xcode.mjs xcodebuild',
+        '-project ios/App/App.xcodeproj',
+        '-scheme App',
+        '-configuration Debug',
+        "-destination 'generic/platform=iOS Simulator'",
+        'build',
+      ].join(' '),
+    ].join(' && ')
+    expect(appPackageJson.scripts['ios:dev']).toBe(
+      'CAP_SERVER_URL=http://localhost:3000 node scripts/with-xcode.mjs cap run ios',
+    )
+    expect(appPackageJson.scripts['ios:build']).toBe(iosBuildCommand)
+    await expect(readFile(join(projectDir, 'apps/main-app/scripts/with-xcode.mjs'), 'utf8')).resolves.toContain(
       "DEVELOPER_DIR: developerDir",
     )
     await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
