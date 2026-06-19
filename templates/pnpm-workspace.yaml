@@ -1,5 +1,6 @@
 packages:
   - apps/main-app
+  - packages/vite-capacitor
 
 allowBuilds:
   '@prisma/client@5.22.0': true

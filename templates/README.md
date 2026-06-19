@@ -19,20 +19,14 @@ Local development uses `TURSO_DATABASE_URL=file:./data/app.db`. Set `BETTER_AUTH
 
 This project includes Capacitor for local iOS and Android development.
 
-Run the web dev server first:
-
-```sh
-pnpm dev
-```
-
-Then run one mobile target in another terminal:
+Run one mobile target:
 
 ```sh
 pnpm ios:dev
 pnpm android:dev
 ```
 
-The default development commands target iOS Simulator and Android Emulator. iOS commands use `/Applications/Xcode.app/Contents/Developer` by default, even if `xcode-select` points at Command Line Tools. If Xcode is installed somewhere else, set `DEVELOPER_DIR` before running iOS commands:
+The mobile development commands run Vite in an `ios` or `android` mode, then launch Capacitor with live reload after the dev server starts. The default development commands target iOS Simulator and Android Emulator. iOS commands use `/Applications/Xcode.app/Contents/Developer` by default, even if `xcode-select` points at Command Line Tools. If Xcode is installed somewhere else, set `DEVELOPER_DIR` before running iOS commands:
 
 ```sh
 export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer

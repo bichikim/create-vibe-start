@@ -131,6 +131,7 @@ describe('generateTemplate', () => {
       name: string
       scripts: Record<string, string>
       dependencies: Record<string, string>
+      devDependencies: Record<string, string>
     }
 
     expect(readme.startsWith('# my-app\n')).toBe(true)
@@ -145,7 +146,7 @@ describe('generateTemplate', () => {
       'pnpm mobile:build',
       'cap sync ios',
       [
-        'node scripts/with-xcode.mjs xcodebuild',
+        'node ../../packages/vite-capacitor/scripts/with-xcode.mjs xcodebuild',
         '-project ios/App/App.xcodeproj',
         '-scheme App',
         '-configuration Debug',
@@ -153,12 +154,20 @@ describe('generateTemplate', () => {
         'build',
       ].join(' '),
     ].join(' && ')
-    expect(appPackageJson.scripts['ios:dev']).toBe(
-      'CAP_SERVER_URL=http://localhost:3000 node scripts/with-xcode.mjs cap run ios',
-    )
+    expect(appPackageJson.scripts['ios:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode ios')
+    expect(appPackageJson.scripts['android:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode android')
     expect(appPackageJson.scripts['ios:build']).toBe(iosBuildCommand)
-    await expect(readFile(join(projectDir, 'apps/main-app/scripts/with-xcode.mjs'), 'utf8')).resolves.toContain(
-      "DEVELOPER_DIR: developerDir",
+    expect(appPackageJson.devDependencies).toMatchObject({
+      ['vite-capacitor']: 'workspace:*',
+    })
+    await expect(
+      readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-xcode.mjs'), 'utf8'),
+    ).resolves.toContain("DEVELOPER_DIR: developerDir")
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
+      '"name": "vite-capacitor"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/vite.config.ts'), 'utf8')).resolves.toContain(
+      "import {capacitorRun} from 'vite-capacitor'",
     )
     await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
       "appName: 'my-app'",
