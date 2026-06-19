@@ -32,7 +32,13 @@ pnpm ios:dev
 pnpm android:dev
 ```
 
-The default development commands target iOS Simulator and Android Emulator. To run on a physical device, set `CAP_SERVER_URL` to a URL reachable from that device before running `cap run`.
+The default development commands target iOS Simulator and Android Emulator. iOS commands use `/Applications/Xcode.app/Contents/Developer` by default, even if `xcode-select` points at Command Line Tools. If Xcode is installed somewhere else, set `DEVELOPER_DIR` before running iOS commands:
+
+```sh
+export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer
+```
+
+To run on a physical device, set `CAP_SERVER_URL` to a URL reachable from that device before running `cap run`.
 
 Local debug native builds are available with:
 
