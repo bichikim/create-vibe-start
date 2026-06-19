@@ -1,5 +1,11 @@
 # Improvement Log
 
+## Done: Reuse existing Turso env during Vercel repair
+
+Status: done
+
+`repair vercel` now skips Turso integration creation when an existing Vercel link already has `TURSO_DATABASE_URL`.
+
 ## Done: Validate Vercel repair project root
 
 Status: done
