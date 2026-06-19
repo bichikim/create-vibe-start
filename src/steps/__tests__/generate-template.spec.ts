@@ -129,6 +129,7 @@ describe('generateTemplate', () => {
     }
     const appPackageJson = JSON.parse(await readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')) as {
       name: string
+      scripts: Record<string, string>
       dependencies: Record<string, string>
     }
 
@@ -140,6 +141,11 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
+    expect(appPackageJson.scripts['ios:dev']).toBe('node scripts/run-ios.mjs dev')
+    expect(appPackageJson.scripts['ios:build']).toBe('node scripts/run-ios.mjs build')
+    await expect(readFile(join(projectDir, 'apps/main-app/scripts/run-ios.mjs'), 'utf8')).resolves.toContain(
+      "DEVELOPER_DIR: developerDir",
+    )
     await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
       "appName: 'my-app'",
     )
