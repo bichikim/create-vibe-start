@@ -18,6 +18,8 @@ const mobileModes = {
   },
 } satisfies Record<string, {command: string; args: string[]}>
 
+const originalCi = process.env.CI
+
 function getServerPort(address: AddressInfo | string | null): string {
   if (!address || typeof address === 'string') {
     throw new Error('Could not read the Vite dev server port.')
@@ -26,12 +28,29 @@ function getServerPort(address: AddressInfo | string | null): string {
   return String(address.port)
 }
 
+function getCapacitorEnv(): NodeJS.ProcessEnv {
+  const env = {...process.env}
+
+  if (originalCi === undefined) {
+    delete env.CI
+  } else {
+    env.CI = originalCi
+  }
+
+  return env
+}
+
 export function capacitorRun(mode: string): Plugin {
   const target = mobileModes[mode as keyof typeof mobileModes]
 
   return {
     name: 'vibe-capacitor-run',
     apply: 'serve',
+    config() {
+      if (target && originalCi === undefined) {
+        process.env.CI = 'true'
+      }
+    },
     configureServer(server) {
       if (!target) {
         return
@@ -42,7 +61,7 @@ export function capacitorRun(mode: string): Plugin {
       server.httpServer?.once('listening', () => {
         const port = getServerPort(server.httpServer?.address() ?? null)
         child = spawn(target.command, [...target.args, '--port', port], {
-          env: process.env,
+          env: getCapacitorEnv(),
           stdio: 'inherit',
         })
 
