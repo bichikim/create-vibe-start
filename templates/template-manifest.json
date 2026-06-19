@@ -37,6 +37,10 @@
       "to": "apps/"
     },
     {
+      "from": "packages/",
+      "to": "packages/"
+    },
+    {
       "from": "apps/main-app/package.json",
       "to": "apps/main-app/package.json",
       "template": true

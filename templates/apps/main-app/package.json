@@ -8,9 +8,9 @@
     "mobile:build": "vite build --config vite.mobile.config.ts",
     "preview": "node .output/server/index.mjs",
     "cap:sync": "cap sync",
-    "ios:dev": "CAP_SERVER_URL=http://localhost:3000 node scripts/with-xcode.mjs cap run ios",
-    "android:dev": "CAP_SERVER_URL=http://10.0.2.2:3000 cap run android",
-    "ios:build": "pnpm mobile:build && cap sync ios && node scripts/with-xcode.mjs xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' build",
+    "ios:dev": "vite --host 0.0.0.0 --port 3000 --mode ios",
+    "android:dev": "vite --host 0.0.0.0 --port 3000 --mode android",
+    "ios:build": "pnpm mobile:build && cap sync ios && node ../../packages/vite-capacitor/scripts/with-xcode.mjs xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' build",
     "android:build": "pnpm mobile:build && cap sync android && cd android && ./gradlew assembleDebug",
     "lint": "oxlint .",
     "format": "oxfmt .",
@@ -51,6 +51,7 @@
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",
     "typescript": "catalog:",
+    "vite-capacitor": "workspace:*",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }
