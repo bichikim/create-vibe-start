@@ -142,21 +142,10 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
-    const iosBuildCommand = [
-      'pnpm mobile:build',
-      'cap sync ios',
-      [
-        'node ../../packages/vite-capacitor/scripts/with-xcode.mjs xcodebuild',
-        '-project ios/App/App.xcodeproj',
-        '-scheme App',
-        '-configuration Debug',
-        "-destination 'generic/platform=iOS Simulator'",
-        'build',
-      ].join(' '),
-    ].join(' && ')
     expect(appPackageJson.scripts['ios:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode ios')
     expect(appPackageJson.scripts['android:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode android')
-    expect(appPackageJson.scripts['ios:build']).toBe(iosBuildCommand)
+    expect(appPackageJson.scripts['ios:build']).toBe('vite-capacitor build ios')
+    expect(appPackageJson.scripts['android:build']).toBe('vite-capacitor build android')
     expect(appPackageJson.devDependencies).toMatchObject({
       ['vite-capacitor']: 'workspace:*',
     })
@@ -166,6 +155,9 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
       '"name": "vite-capacitor"',
     )
+    await expect(
+      readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
+    ).resolves.toContain('vite-capacitor build <ios|android>')
     await expect(readFile(join(projectDir, 'apps/main-app/vite.config.ts'), 'utf8')).resolves.toContain(
       "import {capacitorRun} from 'vite-capacitor'",
     )

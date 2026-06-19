@@ -2,6 +2,9 @@
   "name": "vite-capacitor",
   "private": true,
   "type": "module",
+  "bin": {
+    "vite-capacitor": "./scripts/cli.mjs"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
