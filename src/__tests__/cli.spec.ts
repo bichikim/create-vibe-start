@@ -342,6 +342,7 @@ describe('CLI program', () => {
     expect(selectProjectDirMock).not.toHaveBeenCalled()
     expect(generateTemplateMock).not.toHaveBeenCalled()
     expect(installDependenciesMock).not.toHaveBeenCalled()
+    expect(outroMock).toHaveBeenCalledWith('Vercel repair completed.')
   })
 
   it('prints unexpected repair vercel errors and exits with failure', async () => {
