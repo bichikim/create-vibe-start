@@ -1,3 +1,4 @@
+import {join} from 'node:path'
 import {commandExists} from '../utils/command-exists'
 import {runCommand} from '../utils/run-command'
 
@@ -27,5 +28,12 @@ export async function installDependencies(projectDir: string): Promise<boolean> 
   }
 
   await runCommand('pnpm', ['i'], 'pnpm i', projectDir)
+  // Regenerate Capacitor's Android Gradle links from the installed package paths.
+  await runCommand(
+    'pnpm',
+    ['exec', 'cap', 'update', 'android'],
+    'pnpm exec cap update android',
+    join(projectDir, 'apps/main-app'),
+  )
   return true
 }

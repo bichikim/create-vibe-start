@@ -154,6 +154,9 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/vite.mobile.config.ts'), 'utf8')).resolves.toContain(
       'VITE_API_URL is required for mobile production builds.',
     )
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/capacitor.settings.gradle'), 'utf8'),
+    ).rejects.toThrow()
     await expect(readFile(join(projectDir, 'apps/main-app/tsconfig.json'), 'utf8')).resolves.toContain(
       '"vite.mobile.config.ts"',
     )
