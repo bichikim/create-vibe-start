@@ -142,10 +142,26 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
+    expect(appPackageJson.scripts['mobile:build']).toBe('vite build --config vite.mobile.config.ts --mode mobile')
     expect(appPackageJson.scripts['ios:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode ios')
     expect(appPackageJson.scripts['android:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode android')
     expect(appPackageJson.scripts['ios:build']).toBe('vite-capacitor build ios')
     expect(appPackageJson.scripts['android:build']).toBe('vite-capacitor build android')
+    await expect(readFile(join(projectDir, 'apps/main-app/src/lib/api-url.ts'), 'utf8')).resolves.toContain(
+      'VITE_API_URL',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/lib/auth-client.ts'), 'utf8')).resolves.toContain(
+      'baseURL: apiUrl',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/orpc.ts'), 'utf8')).resolves.toContain(
+      'url: `${apiUrl}/rpc`',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/env.d.ts'), 'utf8')).resolves.toContain(
+      'readonly VITE_API_URL?: string',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/env.d.ts'), 'utf8')).resolves.not.toContain(
+      'VITE_BETTER_AUTH_URL',
+    )
     expect(appPackageJson.devDependencies).toMatchObject({
       ['vite-capacitor']: 'workspace:*',
     })
@@ -161,6 +177,15 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
     ).resolves.toContain('vite-capacitor build <ios|android>')
+    await expect(
+      readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
+    ).resolves.toContain("'--mode', 'mobile'")
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/server/routes/rpc/[...].ts'), 'utf8'),
+    ).resolves.toContain("'capacitor://localhost'")
+    await expect(readFile(join(projectDir, 'apps/main-app/server/auth.ts'), 'utf8')).resolves.toContain(
+      "'capacitor://localhost'",
+    )
     await expect(readFile(join(projectDir, 'apps/main-app/vite.config.ts'), 'utf8')).resolves.toContain(
       "import {capacitorRun} from 'vite-capacitor'",
     )

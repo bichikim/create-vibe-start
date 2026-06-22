@@ -51,6 +51,7 @@ All standard commands are in `package.json` scripts. Key ones:
 | `pnpm lint` | Lint via oxlint |
 | `pnpm typecheck` | TypeScript type checking |
 | `pnpm test` | Run Vitest suite (47 tests, all external calls mocked) |
+| `pnpm coverage` | Run Vitest coverage; keep statements, branches, functions, and lines at 100% |
 | `pnpm build` | Production build via Vite → `dist/cli.js` |
 | `pnpm dev` | Run CLI in dev mode via tsx (writes to `.test-project/`) |
 | `node dist/cli.js` | Run the built CLI directly |

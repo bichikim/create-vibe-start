@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
-    "mobile:build": "vite build --config vite.mobile.config.ts",
+    "mobile:build": "vite build --config vite.mobile.config.ts --mode mobile",
     "preview": "node .output/server/index.mjs",
     "cap:sync": "cap sync",
     "ios:dev": "vite --host 0.0.0.0 --port 3000 --mode ios",

@@ -2,9 +2,10 @@ import type {RouterClient} from '@orpc/server'
 import {createORPCClient} from '@orpc/client'
 import {RPCLink} from '@orpc/client/fetch'
 import type {appRouter} from '@server/rpc/router'
+import {apiUrl} from './lib/api-url'
 
 const link = new RPCLink({
-  url: `${window.location.origin}/rpc`,
+  url: `${apiUrl}/rpc`,
   fetch: (input, init) => fetch(input, {...init, credentials: 'include'}),
 })
 

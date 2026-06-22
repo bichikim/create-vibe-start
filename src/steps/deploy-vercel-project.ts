@@ -65,12 +65,14 @@ export async function deployVercelProject(
     productionEnv.BETTER_AUTH_SECRET &&
     await hasReadyProductionDeployment(project)
   ) {
+    await ensureMobileApiUrl(projectDir, projectName)
     log.message(chalk.green(`Vercel repair 완료: ${projectName}은 이미 설정되어 있습니다.`))
     return
   }
 
   await migrateTursoDatabase(projectDir, productionEnv)
   await runCommand('vercel', ['--prod'], 'vercel --prod', projectDir)
+  await ensureMobileApiUrl(projectDir, projectName)
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
   log.message(chalk.dim('Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.'))
@@ -174,6 +176,34 @@ async function migrateTursoDatabase(projectDir: string, turso: RepairEnv) {
 
 function migrationEnvFile(projectDir: string) {
   return join(projectDir, 'apps/main-app', '.env.migrate.local')
+}
+
+function mobileEnvFile(projectDir: string) {
+  return join(projectDir, 'apps/main-app', '.env.mobile')
+}
+
+async function ensureMobileApiUrl(projectDir: string, projectName: string) {
+  const envFile = mobileEnvFile(projectDir)
+  const apiUrl = `https://${projectName}.vercel.app`
+  let content = ''
+
+  try {
+    content = await readFile(envFile, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
+  }
+
+  if (/^\s*VITE_API_URL\s*=/mu.test(content)) {
+    log.message(chalk.dim('기존 모바일 API URL을 유지합니다.'))
+    return
+  }
+
+  const prefix = content && !content.endsWith('\n') ? '\n' : ''
+  const nextContent = `${content}${prefix}VITE_API_URL=${apiUrl}\n`
+  await writeFile(envFile, nextContent)
+  log.message(chalk.dim(`모바일 API URL을 apps/main-app/.env.mobile에 설정했습니다: ${apiUrl}`))
 }
 
 async function pullVercelProductionEnv(projectDir: string) {

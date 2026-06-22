@@ -34,6 +34,15 @@ export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer
 
 To run on a physical device, set `CAP_SERVER_URL` to a URL reachable from that device before running `cap run`.
 
+Production mobile builds package the Vue client and call the Vercel Nitro API through `VITE_API_URL`.
+Mobile builds run Vite in `mobile` mode, so values can live in `apps/main-app/.env.mobile`:
+
+```sh
+VITE_API_URL=https://my-app.vercel.app pnpm mobile:build
+```
+
+`VITE_API_URL` is the client-visible API origin. Server-only `BETTER_AUTH_URL` still belongs to the Vercel runtime and is resolved from Vercel system env unless explicitly set.
+
 Local debug native builds are available with:
 
 ```sh
