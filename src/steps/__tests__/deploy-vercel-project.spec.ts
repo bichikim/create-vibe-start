@@ -312,6 +312,34 @@ describe('deployVercelProject', () => {
     expect(logMessageMock).toHaveBeenCalledWith('기존 모바일 API URL을 유지합니다.')
   })
 
+  it('throws unexpected mobile env read errors', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        throw Object.assign(new Error('permission denied'), {code: 'EACCES'})
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
+      'permission denied',
+    )
+
+    expect(writeFileMock).not.toHaveBeenCalledWith(
+      '/repo/my-app/apps/main-app/.env.mobile',
+      expect.anything(),
+    )
+  })
+
   it('skips completed repair work for an existing successful Vercel project', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.startsWith('https://api.vercel.com/v13/deployments')) {
