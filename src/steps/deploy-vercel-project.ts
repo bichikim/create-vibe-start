@@ -17,6 +17,12 @@ type ResolvedVercelProject = {
   reusedLink: boolean
 }
 
+type RepairEnv = {
+  BETTER_AUTH_SECRET?: string
+  TURSO_AUTH_TOKEN?: string
+  TURSO_DATABASE_URL?: string
+}
+
 type DeployVercelProjectOptions = {
   githubRepository?: string
 }
@@ -38,13 +44,32 @@ export async function deployVercelProject(
   log.step(chalk.bold('Vercel 배포'))
 
   const {project, reusedLink} = await resolveVercelProject(projectDir, projectName, options.githubRepository)
-  if (!reusedLink || !(await hasTursoDatabase(projectDir))) {
+  let productionEnv: RepairEnv = reusedLink ? await pullVercelProductionEnv(projectDir) : {}
+
+  if (!productionEnv.TURSO_DATABASE_URL) {
     await connectTursoDatabase(projectDir, projectName)
+    productionEnv = await pullVercelProductionEnv(projectDir)
   } else {
     log.message(chalk.dim('기존 Turso production 환경 변수를 재사용합니다.'))
   }
-  await setBetterAuthSecret(project)
-  await migrateTursoDatabase(projectDir)
+
+  if (productionEnv.BETTER_AUTH_SECRET) {
+    log.message(chalk.dim('기존 Better Auth production secret을 재사용합니다.'))
+  } else {
+    await setBetterAuthSecret(project)
+  }
+
+  if (
+    reusedLink &&
+    productionEnv.TURSO_DATABASE_URL &&
+    productionEnv.BETTER_AUTH_SECRET &&
+    await hasReadyProductionDeployment(project)
+  ) {
+    log.message(chalk.green(`Vercel repair 완료: ${projectName}은 이미 설정되어 있습니다.`))
+    return
+  }
+
+  await migrateTursoDatabase(projectDir, productionEnv)
   await runCommand('vercel', ['--prod'], 'vercel --prod', projectDir)
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
@@ -110,13 +135,6 @@ function generateAuthSecret() {
   return randomBytes(AUTH_SECRET_BYTES).toString('base64')
 }
 
-async function hasTursoDatabase(projectDir: string) {
-  const envFile = migrationEnvFile(projectDir)
-
-  await pullVercelProductionEnv(projectDir, envFile)
-  return Boolean((await readTursoEnvFromFile(envFile)).TURSO_DATABASE_URL)
-}
-
 /** BETTER_AUTH_URL은 앱이 VERCEL_*로 런타임 결정하므로 production secret만 설정합니다. */
 async function setBetterAuthSecret(project: VercelProject) {
   const response = await fetch(
@@ -140,13 +158,8 @@ async function setBetterAuthSecret(project: VercelProject) {
 }
 
 /** Turso에 Drizzle 마이그레이션을 적용해 Better Auth 테이블을 만듭니다. */
-async function migrateTursoDatabase(projectDir: string) {
+async function migrateTursoDatabase(projectDir: string, turso: RepairEnv) {
   const appDir = join(projectDir, 'apps/main-app')
-  const envFile = migrationEnvFile(projectDir)
-
-  await pullVercelProductionEnv(projectDir, envFile)
-
-  const turso = await readTursoEnvFromFile(envFile)
   if (!turso.TURSO_DATABASE_URL) {
     throw new Error('TURSO_DATABASE_URL을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.')
   }
@@ -163,18 +176,21 @@ function migrationEnvFile(projectDir: string) {
   return join(projectDir, 'apps/main-app', '.env.migrate.local')
 }
 
-async function pullVercelProductionEnv(projectDir: string, envFile: string) {
+async function pullVercelProductionEnv(projectDir: string) {
+  const envFile = migrationEnvFile(projectDir)
   await runCommand(
     'vercel',
     ['env', 'pull', envFile, '--environment', 'production', '--yes'],
     'vercel env pull',
     projectDir,
   )
+
+  return readRepairEnvFromFile(envFile)
 }
 
-async function readTursoEnvFromFile(envFile: string) {
+async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {
   const content = await readFile(envFile, 'utf8')
-  const values: Record<string, string> = {}
+  const values: RepairEnv = {}
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim()
@@ -188,7 +204,7 @@ async function readTursoEnvFromFile(envFile: string) {
     }
 
     const key = trimmed.slice(0, separator).trim()
-    if (key !== 'TURSO_DATABASE_URL' && key !== 'TURSO_AUTH_TOKEN') {
+    if (key !== 'TURSO_DATABASE_URL' && key !== 'TURSO_AUTH_TOKEN' && key !== 'BETTER_AUTH_SECRET') {
       continue
     }
 
@@ -204,6 +220,32 @@ async function readTursoEnvFromFile(envFile: string) {
   }
 
   return values
+}
+
+async function hasReadyProductionDeployment(project: VercelProject) {
+  const url = new URL('https://api.vercel.com/v13/deployments')
+  url.searchParams.set('projectId', project.id)
+  url.searchParams.set('target', 'production')
+  url.searchParams.set('limit', '20')
+  url.searchParams.set('teamId', project.accountId)
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${await vercelToken()}`,
+    },
+  })
+
+  const body = await response.json().catch(() => undefined) as {
+    deployments?: Array<{state?: string; target?: string}>
+    error?: {message?: string}
+  }
+  if (!response.ok) {
+    throw new Error(body?.error?.message ?? 'Vercel deployment 상태 확인에 실패했습니다.')
+  }
+
+  return Boolean(body.deployments?.some((deployment) => (
+    deployment.state === 'READY' && deployment.target === 'production'
+  )))
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */

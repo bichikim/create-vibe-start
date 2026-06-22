@@ -48,7 +48,9 @@ if (process.platform !== 'darwin') {
 if (!existsSync(developerDir)) {
   fail(`Xcode was not found at ${developerDir}.
 
-Install Xcode from the App Store, or set DEVELOPER_DIR:
+Install Xcode from the App Store, then run this iOS command again.
+
+If Xcode is already installed in a custom location, set DEVELOPER_DIR:
 
 export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer`)
 }
@@ -62,6 +64,8 @@ Install Xcode, then run:
 
 sudo xcodebuild -runFirstLaunch
 
+After setup finishes, run this iOS command again.
+
 If Xcode is installed in a custom location, set:
 
 export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer`)
@@ -74,7 +78,9 @@ The iOS commands use DEVELOPER_DIR=${developerDir}
 
 Open Xcode once or run:
 
-sudo xcodebuild -runFirstLaunch`)
+sudo xcodebuild -runFirstLaunch
+
+After setup finishes, run this iOS command again.`)
 }
 
 run()

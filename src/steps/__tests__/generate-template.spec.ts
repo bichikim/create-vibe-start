@@ -152,6 +152,9 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-xcode.mjs'), 'utf8'),
     ).resolves.toContain("DEVELOPER_DIR: developerDir")
+    await expect(
+      readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-xcode.mjs'), 'utf8'),
+    ).resolves.toContain('Install Xcode from the App Store, then run this iOS command again.')
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
       '"name": "vite-capacitor"',
     )

@@ -57,14 +57,30 @@ describe('deployVercelProject', () => {
     restoreEnvVar('APPDATA', originalAppData)
     restoreEnvVar('XDG_DATA_HOME', originalXdgDataHome)
     fetchMock.mockReset()
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
-      })
-      .mockResolvedValueOnce({
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === 'https://api.vercel.com/v11/projects') {
+        return {
+          ok: true,
+          json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'}),
+        }
+      }
+      if (url.includes('/env?')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({}),
+        }
+      }
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({deployments: []}),
+        }
+      }
+
+      return {
         ok: true,
         json: () => Promise.resolve({}),
+      }
     })
     vi.stubGlobal('fetch', fetchMock)
     accessMock.mockReset().mockResolvedValue(undefined)
@@ -150,7 +166,7 @@ describe('deployVercelProject', () => {
       },
     )
     const envBody = JSON.parse(
-      (fetchMock.mock.calls[1]?.[1] as {body: string}).body,
+      (fetchMock.mock.calls.find(([url]) => String(url).includes('/env?'))?.[1] as {body: string}).body,
     ) as Array<{key: string; value: string; type: string; target: string[]}>
     expect(envBody).toEqual([
       {
@@ -206,13 +222,71 @@ describe('deployVercelProject', () => {
     expect(logStepMock).not.toHaveBeenCalled()
   })
 
-  it('reuses an existing Vercel project link and Turso env when deploying an existing project', async () => {
+  it('skips completed repair work for an existing successful Vercel project', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({deployments: [{state: 'READY', target: 'production'}]}),
+        }
+      }
+
+      return {
+        ok: true,
+        json: () => Promise.resolve({}),
+      }
+    })
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {
         return '{"orgId":"team_linked","projectId":"prj_linked"}'
       }
       if (String(path).endsWith('.env.migrate.local')) {
-        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=existing-secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app')
+
+    expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
+      expect.anything(),
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('https://api.vercel.com/v13/deployments'),
+      expect.objectContaining({
+        headers: expect.objectContaining({Authorization: 'Bearer file-token'}),
+      }),
+    )
+    expect(runCommandMock).toHaveBeenCalledTimes(1)
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+    expect(logMessageMock).toHaveBeenCalledWith('기존 Vercel 프로젝트 링크를 재사용합니다.')
+    expect(logMessageMock).toHaveBeenCalledWith('기존 Turso production 환경 변수를 재사용합니다.')
+    expect(logMessageMock).toHaveBeenCalledWith('기존 Better Auth production secret을 재사용합니다.')
+    expect(logMessageMock).toHaveBeenCalledWith('Vercel repair 완료: my-app은 이미 설정되어 있습니다.')
+  })
+
+  it('reuses an existing Vercel project link and Turso env without rotating an existing secret', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_linked","projectId":"prj_linked"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=existing-secret',
+        ].join('\n')
       }
       if (String(path).includes('auth.json')) {
         return '{"token":"file-token"}'
@@ -226,12 +300,9 @@ describe('deployVercelProject', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
     expect(mkdirMock).not.toHaveBeenCalled()
     expect(writeFileMock).not.toHaveBeenCalled()
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({Authorization: 'Bearer file-token'}),
-      }),
+      expect.anything(),
     )
     expect(runCommandMock).toHaveBeenNthCalledWith(
       1,
@@ -247,21 +318,7 @@ describe('deployVercelProject', () => {
       'vercel env pull',
       '/repo/my-app',
     )
-    expect(runCommandMock).toHaveBeenNthCalledWith(
-      2,
-      'vercel',
-      [
-        'env',
-        'pull',
-        '/repo/my-app/apps/main-app/.env.migrate.local',
-        '--environment',
-        'production',
-        '--yes',
-      ],
-      'vercel env pull',
-      '/repo/my-app',
-    )
-    expect(runCommandMock).toHaveBeenNthCalledWith(3, 'vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+    expect(runCommandMock).toHaveBeenNthCalledWith(2, 'vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
     expect(runCommandMock).not.toHaveBeenCalledWith(
       'vercel',
       [
@@ -283,6 +340,85 @@ describe('deployVercelProject', () => {
     )
     expect(logMessageMock).toHaveBeenCalledWith('기존 Vercel 프로젝트 링크를 재사용합니다.')
     expect(logMessageMock).toHaveBeenCalledWith('기존 Turso production 환경 변수를 재사용합니다.')
+    expect(logMessageMock).toHaveBeenCalledWith('기존 Better Auth production secret을 재사용합니다.')
+  })
+
+  it('throws a clear message when checking production deployments fails', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: false,
+          json: () => Promise.resolve({error: {message: 'deployment denied'}}),
+        }
+      }
+
+      return {
+        ok: true,
+        json: () => Promise.resolve({}),
+      }
+    })
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_linked","projectId":"prj_linked"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=existing-secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow('deployment denied')
+
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+  })
+
+  it('uses the fallback message when checking production deployments returns invalid JSON', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: false,
+          json: () => Promise.reject(new Error('invalid json')),
+        }
+      }
+
+      return {
+        ok: true,
+        json: () => Promise.resolve({}),
+      }
+    })
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_linked","projectId":"prj_linked"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=existing-secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow(
+      'Vercel deployment 상태 확인에 실패했습니다.',
+    )
+
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
   })
 
   it('adds Turso integration for an existing Vercel link when production env is missing', async () => {
@@ -516,7 +652,7 @@ describe('deployVercelProject', () => {
     await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
       'Not authorized',
     )
-    expect(runCommandMock).toHaveBeenCalledTimes(1)
+    expect(runCommandMock).toHaveBeenCalledTimes(2)
     expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
   })
 
