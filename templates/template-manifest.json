@@ -51,8 +51,28 @@
       "template": true
     },
     {
+      "from": "apps/main-app/android/app/build.gradle",
+      "to": "apps/main-app/android/app/build.gradle",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/src/main/AndroidManifest.xml",
+      "to": "apps/main-app/android/app/src/main/AndroidManifest.xml",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/src/main/java/com/vibestart/app/MainActivity.java",
+      "to": "apps/main-app/android/app/src/main/java/com/vibestart/app/MainActivity.java",
+      "template": true
+    },
+    {
       "from": "apps/main-app/ios/App/App/Info.plist",
       "to": "apps/main-app/ios/App/App/Info.plist",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/ios/App/App.xcodeproj/project.pbxproj",
+      "to": "apps/main-app/ios/App/App.xcodeproj/project.pbxproj",
       "template": true
     },
     {

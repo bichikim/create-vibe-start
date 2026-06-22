@@ -34,6 +34,12 @@ export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer
 
 To run on a physical device, set `CAP_SERVER_URL` to a URL reachable from that device before running `cap run`.
 
+Change the native app ID with:
+
+```sh
+pnpm app-id com.example.myapp
+```
+
 Production mobile builds package the Vue client and call the Vercel Nitro API through `VITE_API_URL`.
 Mobile builds run Vite in `mobile` mode, so values can live in `apps/main-app/.env.mobile`:
 
