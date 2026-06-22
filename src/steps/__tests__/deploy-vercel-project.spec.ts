@@ -381,6 +381,46 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
   })
 
+  it('uses the fallback message when checking production deployments returns invalid JSON', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: false,
+          json: () => Promise.reject(new Error('invalid json')),
+        }
+      }
+
+      return {
+        ok: true,
+        json: () => Promise.resolve({}),
+      }
+    })
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_linked","projectId":"prj_linked"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=existing-secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow(
+      'Vercel deployment 상태 확인에 실패했습니다.',
+    )
+
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+  })
+
   it('adds Turso integration for an existing Vercel link when production env is missing', async () => {
     let envReads = 0
     readFileMock.mockImplementation(async (path: string) => {
