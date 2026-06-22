@@ -44,6 +44,10 @@ describe('deployVercelProject', () => {
     return Object.assign(new Error('missing'), {code: 'ENOENT'})
   }
 
+  function missingMobileEnvFile() {
+    return Object.assign(new Error('missing'), {code: 'ENOENT'})
+  }
+
   function restoreEnvVar(name: 'APPDATA' | 'XDG_DATA_HOME', value: string | undefined) {
     if (value === undefined) {
       delete process.env[name]
@@ -134,6 +138,10 @@ describe('deployVercelProject', () => {
       '/repo/my-app/.vercel/project.json',
       `${JSON.stringify({orgId: 'team_123', projectId: 'prj_123'}, null, 2)}\n`,
     )
+    expect(writeFileMock).toHaveBeenCalledWith(
+      '/repo/my-app/apps/main-app/.env.mobile',
+      'VITE_API_URL=https://my-app.vercel.app\n',
+    )
     expect(runCommandMock).toHaveBeenNthCalledWith(
       1,
       'vercel',
@@ -222,6 +230,88 @@ describe('deployVercelProject', () => {
     expect(logStepMock).not.toHaveBeenCalled()
   })
 
+  it('creates the mobile env file after production deploy when it is missing', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        throw missingMobileEnvFile()
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
+
+    expect(writeFileMock).toHaveBeenCalledWith(
+      '/repo/my-app/apps/main-app/.env.mobile',
+      'VITE_API_URL=https://my-app.vercel.app\n',
+    )
+    expect(logMessageMock).toHaveBeenCalledWith(
+      '모바일 API URL을 apps/main-app/.env.mobile에 설정했습니다: https://my-app.vercel.app',
+    )
+  })
+
+  it('appends the mobile API URL when the mobile env file has no existing value', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        return 'EXISTING=value'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
+
+    expect(writeFileMock).toHaveBeenCalledWith(
+      '/repo/my-app/apps/main-app/.env.mobile',
+      'EXISTING=value\nVITE_API_URL=https://my-app.vercel.app\n',
+    )
+  })
+
+  it('keeps an existing mobile API URL unchanged', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        return 'VITE_API_URL=https://api.example.com\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
+
+    expect(writeFileMock).not.toHaveBeenCalledWith(
+      '/repo/my-app/apps/main-app/.env.mobile',
+      expect.anything(),
+    )
+    expect(logMessageMock).toHaveBeenCalledWith('기존 모바일 API URL을 유지합니다.')
+  })
+
   it('skips completed repair work for an existing successful Vercel project', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.startsWith('https://api.vercel.com/v13/deployments')) {
@@ -246,6 +336,9 @@ describe('deployVercelProject', () => {
           'TURSO_AUTH_TOKEN=turso-token',
           'BETTER_AUTH_SECRET=existing-secret',
         ].join('\n')
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        return 'VITE_API_URL=https://api.example.com\n'
       }
       if (String(path).includes('auth.json')) {
         return '{"token":"file-token"}'
@@ -299,7 +392,10 @@ describe('deployVercelProject', () => {
 
     expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
     expect(mkdirMock).not.toHaveBeenCalled()
-    expect(writeFileMock).not.toHaveBeenCalled()
+    expect(writeFileMock).not.toHaveBeenCalledWith(
+      '/repo/my-app/.vercel/project.json',
+      expect.anything(),
+    )
     expect(fetchMock).not.toHaveBeenCalledWith(
       'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
       expect.anything(),
@@ -512,7 +608,10 @@ describe('deployVercelProject', () => {
 
     expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
     expect(mkdirMock).not.toHaveBeenCalled()
-    expect(writeFileMock).not.toHaveBeenCalled()
+    expect(writeFileMock).not.toHaveBeenCalledWith(
+      '/repo/my-app/.vercel/project.json',
+      expect.anything(),
+    )
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
       expect.objectContaining({
@@ -575,6 +674,9 @@ describe('deployVercelProject', () => {
       }
       if (String(path).endsWith('.env.migrate.local')) {
         return 'TURSO_DATABASE_URL=libsql://test.turso.io\n'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        return ''
       }
       throw new Error('unexpected read')
     })

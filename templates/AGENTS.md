@@ -63,6 +63,7 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @<
 
 - The app has its own `.env` next to `apps/main-app/package.json`. Commit `.env.example`, never `.env`.
 - Client variables must be prefixed `VITE_`.
+- Mobile production builds use `VITE_API_URL` from `.env.mobile` to call the Vercel Nitro API from the packaged client.
 - Validate server env with zod in `server/env.ts`; import the typed object instead of reading `process.env` directly.
 
 ### Authentication
@@ -71,7 +72,7 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @<
 - `BETTER_AUTH_URL` is the canonical base URL for auth callbacks. Omit it on Vercel to use `VERCEL_PROJECT_PRODUCTION_URL` (production) or `VERCEL_URL` (preview) at runtime. In development, any `localhost` / `127.0.0.1` origin is trusted regardless of port.
 - Add LAN or custom hosts via `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated).
 - Nitro mounts the handler at `server/routes/api/auth/[...all].ts` using `auth.handler(event.req)`.
-- Vue client: `src/lib/auth-client.ts` (`better-auth/vue`). Session cookies must be sent to oRPC (`credentials: "include"` in `src/orpc.ts`). Leave `VITE_BETTER_AUTH_URL` empty to use `window.location.origin`.
+- Vue client: `src/lib/auth-client.ts` (`better-auth/vue`). Session cookies must be sent to oRPC (`credentials: "include"` in `src/orpc.ts`). Leave `VITE_API_URL` empty to use `window.location.origin`.
 - Regenerate auth tables with `pnpm --filter @<project-name>/main-app auth:generate` after changing the auth config.
 
 ### Database

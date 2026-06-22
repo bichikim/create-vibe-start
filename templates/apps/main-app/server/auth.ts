@@ -8,7 +8,12 @@ const isProduction = process.env.NODE_ENV === 'production'
 function staticTrustedOrigins(baseUrl: string, extraOrigins: string[]) {
   const url = new URL(baseUrl)
   const port = url.port ? `:${url.port}` : ''
-  const origins = new Set([url.origin, ...extraOrigins])
+  const origins = new Set([
+    url.origin,
+    'capacitor://localhost',
+    'http://localhost',
+    ...extraOrigins,
+  ])
 
   if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
     origins.add(`${url.protocol}//localhost${port}`)

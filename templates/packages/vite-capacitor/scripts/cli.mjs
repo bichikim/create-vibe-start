@@ -30,7 +30,7 @@ function run(command, args, options = {}) {
 }
 
 function buildIos() {
-  run('vite', ['build', '--config', 'vite.mobile.config.ts'])
+  run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
   run('cap', ['sync', 'ios'])
   run('node', [
     join(packageDir, 'scripts/with-xcode.mjs'),
@@ -48,7 +48,7 @@ function buildIos() {
 }
 
 function buildAndroid() {
-  run('vite', ['build', '--config', 'vite.mobile.config.ts'])
+  run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
   run('cap', ['sync', 'android'])
   run('./gradlew', ['assembleDebug'], {cwd: join(appDir, 'android')})
 }

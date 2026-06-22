@@ -1,5 +1,6 @@
 import {createAuthClient} from 'better-auth/vue'
+import {apiUrl} from './api-url'
 
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_BETTER_AUTH_URL || window.location.origin,
+  baseURL: apiUrl,
 })
