@@ -20,6 +20,22 @@ export type Answers = Record<string, unknown>
 const defaultManifestFileName = 'template-manifest.json'
 const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
 
+function nativeAppIdFromProjectName(projectName: unknown) {
+  const suffix = typeof projectName === 'string' ? projectName.replaceAll(/[^a-z0-9]/gu, '') : ''
+
+  return `com.vibestart.${suffix || 'app'}`
+}
+
+function templateAnswers(answers: Answers) {
+  const mergedAnswers = {...defaultAnswers, ...answers}
+
+  if (typeof mergedAnswers.nativeAppId !== 'string' || !mergedAnswers.nativeAppId.trim()) {
+    mergedAnswers.nativeAppId = nativeAppIdFromProjectName(mergedAnswers.projectName)
+  }
+
+  return mergedAnswers
+}
+
 /** production 빌드(import.meta.env.PROD)는 패키지 옆 dist/templates, dev/test는 repo 루트 templates를 사용합니다. */
 export function resolveDefaultTemplateDir(moduleUrl: string = import.meta.url): string {
   if (import.meta.env?.PROD) {
@@ -86,7 +102,7 @@ export async function generateTemplate(
     prompts: [],
     actions,
   })
-  const result = await generator.runActions({...defaultAnswers, ...answers})
+  const result = await generator.runActions(templateAnswers(answers))
 
   if (result.failures.length > 0) {
     // Ignored because node-plop normally provides `error`; `message` is only a defensive fallback.

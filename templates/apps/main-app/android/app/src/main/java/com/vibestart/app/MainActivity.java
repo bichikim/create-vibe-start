@@ -1,4 +1,4 @@
-package com.vibestart.app;
+package {{nativeAppId}};
 
 import com.getcapacitor.BridgeActivity;
 

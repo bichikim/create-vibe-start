@@ -195,12 +195,30 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
       "appName: 'my-app'",
     )
+    await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
+      "appId: 'com.vibestart.myapp'",
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/android/app/build.gradle'), 'utf8')).resolves.toContain(
+      'applicationId "com.vibestart.myapp"',
+    )
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/AndroidManifest.xml'), 'utf8'),
+    ).resolves.toContain('android:name="com.vibestart.myapp.MainActivity"')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/java/com/vibestart/app/MainActivity.java'), 'utf8'),
+    ).resolves.toContain('package com.vibestart.myapp;')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/ios/App/App.xcodeproj/project.pbxproj'), 'utf8'),
+    ).resolves.toContain('PRODUCT_BUNDLE_IDENTIFIER = com.vibestart.myapp;')
     await expect(readFile(join(projectDir, 'apps/main-app/ios/App/App/Info.plist'), 'utf8')).resolves.toContain(
       '<string>my-app</string>',
     )
     await expect(
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
     ).resolves.toContain('<string name="app_name">my-app</string>')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
+    ).resolves.toContain('<string name="package_name">com.vibestart.myapp</string>')
   })
 
   it('renders template directories from the manifest', async () => {
