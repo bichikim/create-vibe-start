@@ -150,6 +150,9 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/src/lib/api-url.ts'), 'utf8')).resolves.toContain(
       'VITE_API_URL',
     )
+    await expect(readFile(join(projectDir, 'apps/main-app/vite.mobile.config.ts'), 'utf8')).resolves.toContain(
+      'VITE_API_URL is required for mobile production builds.',
+    )
     await expect(readFile(join(projectDir, 'apps/main-app/src/lib/auth-client.ts'), 'utf8')).resolves.toContain(
       'baseURL: apiUrl',
     )
