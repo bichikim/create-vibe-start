@@ -139,6 +139,7 @@ describe('generateTemplate', () => {
     expect(appPackageJson.dependencies).toMatchObject({['better-auth']: 'catalog:'})
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
+    expect(rootPackageJson.scripts['mobile:build']).toBe('pnpm --filter @my-app/main-app mobile:build')
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
@@ -152,6 +153,12 @@ describe('generateTemplate', () => {
     )
     await expect(readFile(join(projectDir, 'apps/main-app/vite.mobile.config.ts'), 'utf8')).resolves.toContain(
       'VITE_API_URL is required for mobile production builds.',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/tsconfig.json'), 'utf8')).resolves.toContain(
+      '"vite.mobile.config.ts"',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/tsconfig.json'), 'utf8')).resolves.toContain(
+      '"capacitor.config.ts"',
     )
     await expect(readFile(join(projectDir, 'apps/main-app/src/lib/auth-client.ts'), 'utf8')).resolves.toContain(
       'baseURL: apiUrl',
