@@ -1,10 +1,13 @@
+import {execFile} from 'node:child_process'
 import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {tmpdir} from 'node:os'
+import {promisify} from 'node:util'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 const logStepMock = vi.fn()
 const logMessageMock = vi.fn()
+const execFileAsync = promisify(execFile)
 
 vi.mock('@clack/prompts', () => ({
   log: {
@@ -140,11 +143,13 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
+    expect(rootPackageJson.scripts['app-id']).toBe('pnpm --filter @my-app/main-app app-id')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
     expect(appPackageJson.scripts['mobile:build']).toBe('vite build --config vite.mobile.config.ts --mode mobile')
     expect(appPackageJson.scripts['ios:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode ios')
     expect(appPackageJson.scripts['android:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode android')
+    expect(appPackageJson.scripts['app-id']).toBe('vite-capacitor app-id')
     expect(appPackageJson.scripts['ios:build']).toBe('vite-capacitor build ios')
     expect(appPackageJson.scripts['android:build']).toBe('vite-capacitor build android')
     await expect(readFile(join(projectDir, 'apps/main-app/src/lib/api-url.ts'), 'utf8')).resolves.toContain(
@@ -179,7 +184,7 @@ describe('generateTemplate', () => {
     )
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
-    ).resolves.toContain('vite-capacitor build <ios|android>')
+    ).resolves.toContain('vite-capacitor <build <ios|android>|app-id <com.example.app>>')
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
     ).resolves.toContain("'--mode', 'mobile'")
@@ -219,6 +224,31 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
     ).resolves.toContain('<string name="package_name">com.vibestart.myapp</string>')
+
+    await execFileAsync(process.execPath, [
+      join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'),
+      'app-id',
+      'com.example.changed',
+    ], {cwd: join(projectDir, 'apps/main-app')})
+
+    await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
+      "appId: 'com.example.changed'",
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/android/app/build.gradle'), 'utf8')).resolves.toContain(
+      'applicationId "com.example.changed"',
+    )
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/AndroidManifest.xml'), 'utf8'),
+    ).resolves.toContain('android:name="com.example.changed.MainActivity"')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/java/com/vibestart/app/MainActivity.java'), 'utf8'),
+    ).resolves.toContain('package com.example.changed;')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/ios/App/App.xcodeproj/project.pbxproj'), 'utf8'),
+    ).resolves.toContain('PRODUCT_BUNDLE_IDENTIFIER = com.example.changed;')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
+    ).resolves.toContain('<string name="custom_url_scheme">com.example.changed</string>')
   })
 
   it('renders template directories from the manifest', async () => {
@@ -251,6 +281,39 @@ describe('generateTemplate', () => {
     await generateTemplate(projectDir, {projectName: 'my-app'}, templateDir)
 
     await expect(readFile(join(projectDir, 'snippets', 'hello.txt'), 'utf8')).resolves.toBe('Hello my-app\n')
+  })
+
+  it('derives native app IDs and allows explicit overrides', async () => {
+    const templateDir = join(testDir, 'template')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      `${JSON.stringify({files: [{from: 'native.txt', template: true}]})}\n`,
+    )
+    await writeFile(join(templateDir, 'native.txt'), '{{nativeAppId}}\n')
+    const {generateTemplate} = await import('../generate-template')
+
+    const nonStringProjectDir = join(testDir, 'non-string-project')
+    await generateTemplate(nonStringProjectDir, {projectName: 1}, templateDir)
+    await expect(readFile(join(nonStringProjectDir, 'native.txt'), 'utf8')).resolves.toBe('com.vibestart.app\n')
+
+    const emptySuffixProjectDir = join(testDir, 'empty-suffix-project')
+    await generateTemplate(emptySuffixProjectDir, {projectName: '---'}, templateDir)
+    await expect(readFile(join(emptySuffixProjectDir, 'native.txt'), 'utf8')).resolves.toBe('com.vibestart.app\n')
+
+    const blankOverrideProjectDir = join(testDir, 'blank-override-project')
+    await generateTemplate(blankOverrideProjectDir, {projectName: 'my-app', nativeAppId: '   '}, templateDir)
+    await expect(readFile(join(blankOverrideProjectDir, 'native.txt'), 'utf8')).resolves.toBe(
+      'com.vibestart.myapp\n',
+    )
+
+    const customOverrideProjectDir = join(testDir, 'custom-override-project')
+    await generateTemplate(
+      customOverrideProjectDir,
+      {projectName: 'my-app', nativeAppId: 'com.example.app'},
+      templateDir,
+    )
+    await expect(readFile(join(customOverrideProjectDir, 'native.txt'), 'utf8')).resolves.toBe('com.example.app\n')
   })
 
   it('treats a missing template source as a file action and reports the failure', async () => {
