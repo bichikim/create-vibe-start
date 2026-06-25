@@ -3,10 +3,12 @@ version = 1
 name = "create-vibe-start"
 
 [setup]
-script = "cd "
+script = ""
 
 [setup.darwin]
 script = '''
 cd "$CODEX_WORKTREE_PATH"
 pnpm install
+git config user.name "kimbichi"
+git config user.email "bichi@live.co.kr"
 '''
