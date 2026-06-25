@@ -24,7 +24,14 @@ describe('installDependencies', () => {
     await expect(installDependencies('/repo')).resolves.toBe(true)
 
     expect(commandExistsMock).toHaveBeenCalledWith('pnpm')
-    expect(runCommandMock).toHaveBeenCalledWith('pnpm', ['i'], 'pnpm i', '/repo')
+    expect(runCommandMock).toHaveBeenNthCalledWith(1, 'pnpm', ['i'], 'pnpm i', '/repo')
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      2,
+      'pnpm',
+      ['exec', 'cap', 'update', 'android'],
+      'pnpm exec cap update android',
+      '/repo/apps/main-app',
+    )
   })
 
   it('uses Corepack to activate pnpm when pnpm is unavailable', async () => {
@@ -47,6 +54,13 @@ describe('installDependencies', () => {
       'corepack prepare pnpm@11.1.2 --activate',
     )
     expect(runCommandMock).toHaveBeenNthCalledWith(3, 'pnpm', ['i'], 'pnpm i', '/repo')
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      4,
+      'pnpm',
+      ['exec', 'cap', 'update', 'android'],
+      'pnpm exec cap update android',
+      '/repo/apps/main-app',
+    )
   })
 
   it('fails with a clear message when pnpm and Corepack are unavailable', async () => {
