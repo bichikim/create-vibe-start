@@ -1,4 +1,4 @@
-import {log} from '@clack/prompts'
+import {confirm, isCancel, log, text} from '@clack/prompts'
 import chalk from 'chalk'
 import {runCommand, runCommandQuietly} from '../utils/run-command'
 
@@ -13,6 +13,7 @@ export async function createGitHubRepository(projectDir: string, projectName: st
   log.step(chalk.bold('GitHub 저장소 생성'))
 
   await runCommand('git', ['init'], 'git init', projectDir)
+  await ensureGitCommitIdentity(projectDir)
   await runCommand('git', ['add', '.'], 'git add .', projectDir)
   await runCommand('git', ['commit', '-m', 'Initial commit'], 'git commit -m "Initial commit"', projectDir)
   await runCommand(
@@ -29,4 +30,63 @@ export async function createGitHubRepository(projectDir: string, projectName: st
 
   log.message(chalk.green(`GitHub 저장소 생성 완료: ${projectName}`))
   return result.stdout.trim()
+}
+
+async function ensureGitCommitIdentity(projectDir: string) {
+  const [name, email] = await Promise.all([
+    readGitConfig(projectDir, 'user.name'),
+    readGitConfig(projectDir, 'user.email'),
+  ])
+
+  if (name && email) {
+    return
+  }
+
+  const shouldConfigure = await confirm({
+    message: 'Git commit 작성자 정보가 없습니다. 이 프로젝트에만 설정할까요?',
+    initialValue: true,
+  })
+
+  if (isCancel(shouldConfigure) || !shouldConfigure) {
+    throw new Error('Git commit 작성자 정보가 없어 GitHub 저장소 생성을 진행할 수 없습니다.')
+  }
+
+  const authorName = await text({
+    message: 'Git commit 작성자 이름을 입력해주세요.',
+    placeholder: 'Your Name',
+    initialValue: name,
+    validate(value) {
+      return value.trim() ? undefined : '이름을 입력해주세요.'
+    },
+  })
+
+  if (isCancel(authorName)) {
+    throw new Error('Git commit 작성자 정보 설정을 취소했습니다.')
+  }
+
+  const authorEmail = await text({
+    message: 'Git commit 작성자 이메일을 입력해주세요.',
+    placeholder: 'you@example.com',
+    initialValue: email,
+    validate(value) {
+      const trimmed = value.trim()
+      return trimmed && trimmed.includes('@') ? undefined : '이메일을 입력해주세요.'
+    },
+  })
+
+  if (isCancel(authorEmail)) {
+    throw new Error('Git commit 작성자 정보 설정을 취소했습니다.')
+  }
+
+  await runCommand('git', ['config', 'user.name', authorName.trim()], 'git config user.name', projectDir)
+  await runCommand('git', ['config', 'user.email', authorEmail.trim()], 'git config user.email', projectDir)
+}
+
+async function readGitConfig(projectDir: string, key: 'user.name' | 'user.email') {
+  try {
+    const result = await runCommandQuietly('git', ['config', key], projectDir)
+    return result.stdout.trim()
+  } catch {
+    return ''
+  }
 }
