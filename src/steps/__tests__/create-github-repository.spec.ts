@@ -159,6 +159,44 @@ describe('createGitHubRepository', () => {
     expect(runCommandMock).toHaveBeenCalledWith('git', ['init'], 'git init', '/repo/my-app')
   })
 
+  it('stops before commit when git identity name input is cancelled', async () => {
+    runCommandQuietlyMock.mockImplementation(async (command: string, args: string[]) => {
+      if (command === 'git') {
+        throw new Error(`missing ${args[1]}`)
+      }
+      return {stdout: 'bichikim/my-app\n'}
+    })
+    isCancelMock.mockImplementation((value: unknown) => value === 'cancel')
+    textMock.mockResolvedValueOnce('cancel')
+    const {createGitHubRepository} = await import('../create-github-repository')
+
+    await expect(createGitHubRepository('/repo/my-app', 'my-app')).rejects.toThrow(
+      'Git commit 작성자 정보 설정을 취소했습니다.',
+    )
+
+    expect(runCommandMock).toHaveBeenCalledTimes(1)
+    expect(runCommandMock).toHaveBeenCalledWith('git', ['init'], 'git init', '/repo/my-app')
+  })
+
+  it('stops before commit when git identity email input is cancelled', async () => {
+    runCommandQuietlyMock.mockImplementation(async (command: string, args: string[]) => {
+      if (command === 'git') {
+        throw new Error(`missing ${args[1]}`)
+      }
+      return {stdout: 'bichikim/my-app\n'}
+    })
+    isCancelMock.mockImplementation((value: unknown) => value === 'cancel')
+    textMock.mockResolvedValueOnce('Vibe User').mockResolvedValueOnce('cancel')
+    const {createGitHubRepository} = await import('../create-github-repository')
+
+    await expect(createGitHubRepository('/repo/my-app', 'my-app')).rejects.toThrow(
+      'Git commit 작성자 정보 설정을 취소했습니다.',
+    )
+
+    expect(runCommandMock).toHaveBeenCalledTimes(1)
+    expect(runCommandMock).toHaveBeenCalledWith('git', ['init'], 'git init', '/repo/my-app')
+  })
+
   it('validates git identity prompt values', async () => {
     runCommandQuietlyMock.mockImplementation(async (command: string) => {
       if (command === 'git') {
