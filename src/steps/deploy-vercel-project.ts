@@ -166,6 +166,10 @@ async function migrateTursoDatabase(projectDir: string, turso: RepairEnv) {
     throw new Error('TURSO_DATABASE_URL을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.')
   }
 
+  if (!turso.TURSO_DATABASE_URL.startsWith('file:') && !turso.TURSO_AUTH_TOKEN) {
+    throw new Error('TURSO_AUTH_TOKEN을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.')
+  }
+
   log.info('실행: pnpm db:migrate (Turso production)')
   await execa('pnpm', ['db:migrate'], {
     cwd: appDir,
