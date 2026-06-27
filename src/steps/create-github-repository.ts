@@ -1,5 +1,6 @@
 import {confirm, isCancel, log, text} from '@clack/prompts'
 import chalk from 'chalk'
+import {withNetworkRetry} from '../utils/network-retry'
 import {runCommand, runCommandQuietly} from '../utils/run-command'
 
 /**
@@ -22,10 +23,13 @@ export async function createGitHubRepository(projectDir: string, projectName: st
     `gh repo create ${projectName} --private --source . --remote origin --push`,
     projectDir,
   )
-  const result = await runCommandQuietly(
-    'gh',
-    ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
-    projectDir,
+  const result = await withNetworkRetry(
+    'gh repo view',
+    () => runCommandQuietly(
+      'gh',
+      ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
+      projectDir,
+    ),
   )
 
   log.message(chalk.green(`GitHub 저장소 생성 완료: ${projectName}`))
