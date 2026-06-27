@@ -73,4 +73,27 @@ describe('network retry utilities', () => {
     expect(operation).toHaveBeenCalledTimes(2)
     expect(logWarnMock).toHaveBeenCalledWith('네트워크 오류로 재시도합니다 (2/3): Vercel deployment 상태 확인')
   })
+
+  it('detects retryable network errors from non-Error values and extended error fields', async () => {
+    const {isRetryableNetworkError} = await import('../network-retry')
+
+    expect(isRetryableNetworkError('socket hang up')).toBe(true)
+    expect(isRetryableNetworkError(Object.assign(new Error('plain failure'), {
+      code: 123,
+      stderr: 'network unavailable',
+    }))).toBe(true)
+    expect(isRetryableNetworkError(Object.assign(new Error('plain failure'), {
+      code: 123,
+      stderr: 456,
+    }))).toBe(false)
+  })
+
+  it('classifies only retryable HTTP statuses', async () => {
+    const {isRetryableHttpStatus} = await import('../network-retry')
+
+    expect(isRetryableHttpStatus(408)).toBe(true)
+    expect(isRetryableHttpStatus(429)).toBe(true)
+    expect(isRetryableHttpStatus(500)).toBe(true)
+    expect(isRetryableHttpStatus(400)).toBe(false)
+  })
 })

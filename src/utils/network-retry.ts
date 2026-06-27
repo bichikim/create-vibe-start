@@ -66,7 +66,7 @@ export function isRetryableHttpStatus(status: number) {
 async function waitForRetry(label: string, attempt: number) {
   const nextAttempt = attempt + 1
   log.warn(`네트워크 오류로 재시도합니다 (${nextAttempt}/${MAX_ATTEMPTS}): ${label}`)
-  await setTimeout(RETRY_DELAYS_MS[attempt - 1] ?? RETRY_DELAYS_MS.at(-1))
+  await setTimeout(RETRY_DELAYS_MS[attempt - 1])
 }
 
 function errorValues(error: unknown) {
