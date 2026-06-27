@@ -151,10 +151,17 @@ describe('generateTemplate', () => {
     expect(appPackageJson.name).toBe('@my-app/main-app')
     expect(appPackageJson.scripts['mobile:build']).toBe('vite build --config vite.mobile.config.ts --mode mobile')
     expect(appPackageJson.scripts.ios).toBe(
-      'node ../../packages/vite-capacitor/scripts/with-xcode.mjs cap run ios --live-reload --host localhost --port 3000',
+      [
+        'node ../../packages/vite-capacitor/scripts/with-xcode.mjs',
+        'cap run ios --live-reload --host localhost --port 3000',
+      ].join(' '),
     )
     expect(appPackageJson.scripts.android).toBe(
-      'node ../../packages/vite-capacitor/scripts/with-android.mjs adb reverse tcp:3000 tcp:3000 && node ../../packages/vite-capacitor/scripts/with-android.mjs cap run android --live-reload --host localhost --port 3000',
+      [
+        'node ../../packages/vite-capacitor/scripts/with-android.mjs adb reverse tcp:3000 tcp:3000',
+        '&& node ../../packages/vite-capacitor/scripts/with-android.mjs',
+        'cap run android --live-reload --host localhost --port 3000',
+      ].join(' '),
     )
     expect(appPackageJson.scripts['ios:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode ios')
     expect(appPackageJson.scripts['android:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode android')
