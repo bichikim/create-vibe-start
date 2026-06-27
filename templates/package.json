@@ -6,6 +6,8 @@
     "dev": "pnpm --filter @{{projectName}}/main-app dev",
     "build": "pnpm --filter @{{projectName}}/main-app build",
     "mobile:build": "pnpm --filter @{{projectName}}/main-app mobile:build",
+    "ios": "pnpm --filter @{{projectName}}/main-app ios",
+    "android": "pnpm --filter @{{projectName}}/main-app android",
     "ios:dev": "pnpm --filter @{{projectName}}/main-app ios:dev",
     "android:dev": "pnpm --filter @{{projectName}}/main-app android:dev",
     "app-id": "pnpm --filter @{{projectName}}/main-app app-id",

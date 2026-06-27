@@ -28,6 +28,14 @@ pnpm android:dev
 
 The mobile development commands run Vite in an `ios` or `android` mode, then launch Capacitor with live reload after the dev server starts. The default development commands target iOS Simulator and Android Emulator. iOS commands use `/Applications/Xcode.app/Contents/Developer` by default, even if `xcode-select` points at Command Line Tools. If Xcode is installed somewhere else, set `DEVELOPER_DIR` before running iOS commands:
 
+Or run Vite separately, then launch a native target from another terminal:
+
+```sh
+pnpm dev
+pnpm ios
+pnpm android
+```
+
 ```sh
 export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer
 ```
