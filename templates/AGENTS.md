@@ -48,6 +48,8 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @<
 | Script | Purpose |
 |---|---|
 | `pnpm dev` | Nitro/Vite dev server |
+| `pnpm ios` | Launch iOS against an already-running local dev server |
+| `pnpm android` | Launch Android against an already-running local dev server |
 | `pnpm build` | Production build |
 | `pnpm test` | Vitest |
 | `pnpm lint` | oxlint |

@@ -143,11 +143,26 @@ describe('generateTemplate', () => {
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
     expect(rootPackageJson.scripts['mobile:build']).toBe('pnpm --filter @my-app/main-app mobile:build')
+    expect(rootPackageJson.scripts.ios).toBe('pnpm --filter @my-app/main-app ios')
+    expect(rootPackageJson.scripts.android).toBe('pnpm --filter @my-app/main-app android')
     expect(rootPackageJson.scripts['ios:dev']).toBe('pnpm --filter @my-app/main-app ios:dev')
     expect(rootPackageJson.scripts['app-id']).toBe('pnpm --filter @my-app/main-app app-id')
     expect(rootPackageJson.scripts['android:build']).toBe('pnpm --filter @my-app/main-app android:build')
     expect(appPackageJson.name).toBe('@my-app/main-app')
     expect(appPackageJson.scripts['mobile:build']).toBe('vite build --config vite.mobile.config.ts --mode mobile')
+    expect(appPackageJson.scripts.ios).toBe(
+      [
+        'node ../../packages/vite-capacitor/scripts/with-xcode.mjs',
+        'cap run ios --live-reload --host localhost --port 3000',
+      ].join(' '),
+    )
+    expect(appPackageJson.scripts.android).toBe(
+      [
+        'node ../../packages/vite-capacitor/scripts/with-android.mjs adb reverse tcp:3000 tcp:3000',
+        '&& node ../../packages/vite-capacitor/scripts/with-android.mjs',
+        'cap run android --live-reload --host localhost --port 3000',
+      ].join(' '),
+    )
     expect(appPackageJson.scripts['ios:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode ios')
     expect(appPackageJson.scripts['android:dev']).toBe('vite --host 0.0.0.0 --port 3000 --mode android')
     expect(appPackageJson.scripts['app-id']).toBe('vite-capacitor app-id')
@@ -206,6 +221,12 @@ describe('generateTemplate', () => {
     ).resolves.toContain("'--mode', 'mobile'")
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
       "scripts/with-android.mjs",
+    )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
+      "'adb', 'reverse'",
+    )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
+      "'--host', 'localhost'",
     )
     await expect(
       readFile(join(projectDir, 'apps/main-app/server/routes/rpc/[...].ts'), 'utf8'),

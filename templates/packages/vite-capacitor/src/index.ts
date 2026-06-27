@@ -1,4 +1,4 @@
-import {type ChildProcess, spawn} from 'node:child_process'
+import {type ChildProcess, spawn, spawnSync} from 'node:child_process'
 import type {AddressInfo} from 'node:net'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -15,9 +15,10 @@ const mobileModes = {
   },
   android: {
     command: 'node',
-    args: [withAndroidScript, 'cap', 'run', 'android', '--live-reload', '--host', '10.0.2.2'],
+    args: [withAndroidScript, 'cap', 'run', 'android', '--live-reload', '--host', 'localhost'],
+    reversePort: true,
   },
-} satisfies Record<string, {command: string; args: string[]}>
+} satisfies Record<string, {command: string; args: string[]; reversePort?: boolean}>
 
 const originalCi = process.env.CI
 
@@ -61,6 +62,13 @@ export function capacitorRun(mode: string): Plugin {
 
       server.httpServer?.once('listening', () => {
         const port = getServerPort(server.httpServer?.address() ?? null)
+        if (target.reversePort) {
+          spawnSync(target.command, [withAndroidScript, 'adb', 'reverse', `tcp:${port}`, `tcp:${port}`], {
+            env: getCapacitorEnv(),
+            stdio: 'inherit',
+          })
+        }
+
         child = spawn(target.command, [...target.args, '--port', port], {
           env: getCapacitorEnv(),
           stdio: 'inherit',
