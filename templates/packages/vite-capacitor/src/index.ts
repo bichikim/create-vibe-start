@@ -6,6 +6,7 @@ import type {Plugin} from 'vite'
 
 const packageDir = dirname(dirname(fileURLToPath(import.meta.url)))
 const withXcodeScript = join(packageDir, 'scripts/with-xcode.mjs')
+const withAndroidScript = join(packageDir, 'scripts/with-android.mjs')
 
 const mobileModes = {
   ios: {
@@ -13,8 +14,8 @@ const mobileModes = {
     args: [withXcodeScript, 'cap', 'run', 'ios', '--live-reload', '--host', 'localhost'],
   },
   android: {
-    command: 'cap',
-    args: ['run', 'android', '--live-reload', '--host', '10.0.2.2'],
+    command: 'node',
+    args: [withAndroidScript, 'cap', 'run', 'android', '--live-reload', '--host', '10.0.2.2'],
   },
 } satisfies Record<string, {command: string; args: string[]}>
 

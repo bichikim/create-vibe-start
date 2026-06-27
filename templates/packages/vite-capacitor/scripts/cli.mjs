@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url'
 
 const packageDir = dirname(dirname(fileURLToPath(import.meta.url)))
 const appDir = process.cwd()
+const withAndroidScript = join(packageDir, 'scripts/with-android.mjs')
 const [, , command, target] = process.argv
 
 function fail(message) {
@@ -94,7 +95,7 @@ function buildIos() {
 function buildAndroid() {
   run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
   run('cap', ['sync', 'android'])
-  run('./gradlew', ['assembleDebug'], {cwd: join(appDir, 'android')})
+  run('node', [withAndroidScript, './gradlew', 'assembleDebug'], {cwd: join(appDir, 'android')})
 }
 
 if (command === 'app-id' && target) {

@@ -189,6 +189,12 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-xcode.mjs'), 'utf8'),
     ).resolves.toContain('Install Xcode from the App Store, then run this iOS command again.')
+    await expect(
+      readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-android.mjs'), 'utf8'),
+    ).resolves.toContain('Android SDK was not found.')
+    await expect(
+      readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-android.mjs'), 'utf8'),
+    ).resolves.toContain('Android SDK Platform-Tools were not found.')
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
       '"name": "vite-capacitor"',
     )
@@ -198,6 +204,9 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
     ).resolves.toContain("'--mode', 'mobile'")
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
+      "scripts/with-android.mjs",
+    )
     await expect(
       readFile(join(projectDir, 'apps/main-app/server/routes/rpc/[...].ts'), 'utf8'),
     ).resolves.toContain("'capacitor://localhost'")
