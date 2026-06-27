@@ -4,13 +4,19 @@ const runCommandMock = vi.fn()
 const runCommandQuietlyMock = vi.fn()
 const confirmMock = vi.fn()
 const isCancelMock = vi.fn()
+const delayMock = vi.fn()
 const textMock = vi.fn()
 const logStepMock = vi.fn()
 const logMessageMock = vi.fn()
+const logWarnMock = vi.fn()
 
 vi.mock('../../utils/run-command.js', () => ({
   runCommand: runCommandMock,
   runCommandQuietly: runCommandQuietlyMock,
+}))
+
+vi.mock('node:timers/promises', () => ({
+  setTimeout: delayMock,
 }))
 
 vi.mock('@clack/prompts', () => ({
@@ -19,6 +25,7 @@ vi.mock('@clack/prompts', () => ({
   log: {
     step: logStepMock,
     message: logMessageMock,
+    warn: logWarnMock,
   },
   text: textMock,
 }))
@@ -37,9 +44,11 @@ describe('createGitHubRepository', () => {
     })
     confirmMock.mockReset().mockResolvedValue(true)
     isCancelMock.mockReset().mockReturnValue(false)
+    delayMock.mockReset().mockResolvedValue(undefined)
     textMock.mockReset().mockResolvedValue('unused')
     logStepMock.mockReset()
     logMessageMock.mockReset()
+    logWarnMock.mockReset()
   })
 
   it('initializes git, commits the template, and creates a private GitHub repository', async () => {
@@ -120,6 +129,59 @@ describe('createGitHubRepository', () => {
       '/repo/my-app',
     )
     expect(runCommandMock).toHaveBeenNthCalledWith(4, 'git', ['add', '.'], 'git add .', '/repo/my-app')
+  })
+
+  it('retries the read-only GitHub repository lookup when it fails with a network error', async () => {
+    runCommandQuietlyMock.mockImplementation(async (command: string, args: string[]) => {
+      if (command === 'git' && args[1] === 'user.name') {
+        return {stdout: 'Vibe User\n'}
+      }
+      if (command === 'git' && args[1] === 'user.email') {
+        return {stdout: 'vibe@example.com\n'}
+      }
+      if (command === 'gh') {
+        if (runCommandQuietlyMock.mock.calls.filter(([calledCommand]) => calledCommand === 'gh').length === 1) {
+          throw Object.assign(new Error('request failed'), {code: 'ENOTFOUND'})
+        }
+
+        return {stdout: 'bichikim/my-app\n'}
+      }
+
+      return {stdout: ''}
+    })
+    const {createGitHubRepository} = await import('../create-github-repository')
+
+    await expect(createGitHubRepository('/repo/my-app', 'my-app')).resolves.toBe('bichikim/my-app')
+
+    expect(runCommandMock).toHaveBeenCalledTimes(4)
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      4,
+      'gh',
+      ['repo', 'create', 'my-app', '--private', '--source', '.', '--remote', 'origin', '--push'],
+      'gh repo create my-app --private --source . --remote origin --push',
+      '/repo/my-app',
+    )
+    expect(runCommandQuietlyMock).toHaveBeenCalledWith(
+      'gh',
+      ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
+      '/repo/my-app',
+    )
+    expect(runCommandQuietlyMock.mock.calls.filter(([command]) => command === 'gh')).toHaveLength(2)
+  })
+
+  it('does not retry GitHub repository creation failures', async () => {
+    const createError = new Error('repo already exists')
+    runCommandMock.mockImplementation(async (command: string, args: string[]) => {
+      if (command === 'gh' && args[0] === 'repo' && args[1] === 'create') {
+        throw createError
+      }
+    })
+    const {createGitHubRepository} = await import('../create-github-repository')
+
+    await expect(createGitHubRepository('/repo/my-app', 'my-app')).rejects.toBe(createError)
+
+    expect(runCommandMock.mock.calls.filter(([command]) => command === 'gh')).toHaveLength(1)
+    expect(runCommandQuietlyMock.mock.calls.filter(([command]) => command === 'gh')).toHaveLength(0)
   })
 
   it('uses existing git identity values as prompt defaults when one value is missing', async () => {

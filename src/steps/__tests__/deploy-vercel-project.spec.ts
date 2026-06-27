@@ -11,9 +11,14 @@ const logMessageMock = vi.fn()
 const logWarnMock = vi.fn()
 const fetchMock = vi.fn()
 const execaMock = vi.fn()
+const delayMock = vi.fn()
 
 vi.mock('execa', () => ({
   execa: execaMock,
+}))
+
+vi.mock('node:timers/promises', () => ({
+  setTimeout: delayMock,
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -90,6 +95,7 @@ describe('deployVercelProject', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     accessMock.mockReset().mockResolvedValue(undefined)
+    delayMock.mockReset().mockResolvedValue(undefined)
     execaMock.mockReset().mockResolvedValue(undefined)
     mkdirMock.mockReset().mockResolvedValue(undefined)
     rmMock.mockReset().mockResolvedValue(undefined)
@@ -216,6 +222,171 @@ describe('deployVercelProject', () => {
     expect(logMessageMock).toHaveBeenCalledWith(
       'Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.',
     )
+  })
+
+  it('retries production deployment status checks on retryable HTTP responses', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_123","projectId":"prj_123"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        throw missingMobileEnvFile()
+      }
+      return ''
+    })
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        const deploymentCalls = fetchMock.mock.calls.filter(([calledUrl]) => (
+          String(calledUrl).startsWith('https://api.vercel.com/v13/deployments')
+        )).length
+
+        if (deploymentCalls === 1) {
+          return {
+            ok: false,
+            status: 500,
+            json: () => Promise.resolve({error: {message: 'temporary outage'}}),
+          }
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({deployments: [{state: 'READY', target: 'production'}]}),
+        }
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      }
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBeUndefined()
+
+    expect(fetchMock.mock.calls.filter(([url]) => (
+      String(url).startsWith('https://api.vercel.com/v13/deployments')
+    ))).toHaveLength(2)
+    expect(logWarnMock).toHaveBeenCalledWith('네트워크 오류로 재시도합니다 (2/3): Vercel deployment 상태 확인')
+  })
+
+  it('does not retry production deployment status checks on non-retryable HTTP responses', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_123","projectId":"prj_123"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({error: {message: 'unauthorized'}}),
+        }
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      }
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow('unauthorized')
+
+    expect(fetchMock.mock.calls.filter(([url]) => (
+      String(url).startsWith('https://api.vercel.com/v13/deployments')
+    ))).toHaveLength(1)
+    expect(logWarnMock).not.toHaveBeenCalled()
+  })
+
+  it('retries Vercel env pull on explicit network errors', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_123","projectId":"prj_123"}'
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return [
+          'TURSO_DATABASE_URL=libsql://test.turso.io',
+          'TURSO_AUTH_TOKEN=turso-token',
+          'BETTER_AUTH_SECRET=secret',
+        ].join('\n')
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      if (String(path).endsWith('.env.mobile')) {
+        throw missingMobileEnvFile()
+      }
+      return ''
+    })
+    runCommandMock
+      .mockRejectedValueOnce(Object.assign(new Error('fetch failed'), {code: 'UND_ERR_CONNECT_TIMEOUT'}))
+      .mockResolvedValueOnce(undefined)
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({deployments: [{state: 'READY', target: 'production'}]}),
+        }
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      }
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBeUndefined()
+
+    expect(runCommandMock.mock.calls.filter(([command, args]) => (
+      command === 'vercel' && args[0] === 'env'
+    ))).toHaveLength(2)
+    expect(logWarnMock).toHaveBeenCalledWith('네트워크 오류로 재시도합니다 (2/3): vercel env pull')
+  })
+
+  it('does not retry Vercel env pull when the failure is not clearly network-related', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{"orgId":"team_123","projectId":"prj_123"}'
+      }
+      return ''
+    })
+    runCommandMock.mockRejectedValueOnce(new Error('missing project link'))
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow('missing project link')
+
+    expect(runCommandMock.mock.calls.filter(([command, args]) => (
+      command === 'vercel' && args[0] === 'env'
+    ))).toHaveLength(1)
+    expect(logWarnMock).not.toHaveBeenCalled()
   })
 
   it('rejects a directory that is not a generated project root before external setup', async () => {

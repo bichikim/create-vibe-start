@@ -5,6 +5,7 @@ import {join} from 'node:path'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
 import {execa} from 'execa'
+import {isRetryableHttpStatus, withNetworkRetry} from '../utils/network-retry'
 import {runCommand} from '../utils/run-command'
 
 type VercelProject = {
@@ -213,11 +214,14 @@ async function ensureMobileApiUrl(projectDir: string, projectName: string) {
 async function pullVercelProductionEnv(projectDir: string) {
   const envFile = migrationEnvFile(projectDir)
   try {
-    await runCommand(
-      'vercel',
-      ['env', 'pull', envFile, '--environment', 'production', '--yes'],
+    await withNetworkRetry(
       'vercel env pull',
-      projectDir,
+      () => runCommand(
+        'vercel',
+        ['env', 'pull', envFile, '--environment', 'production', '--yes'],
+        'vercel env pull',
+        projectDir,
+      ),
     )
 
     return await readRepairEnvFromFile(envFile)
@@ -267,11 +271,15 @@ async function hasReadyProductionDeployment(project: VercelProject) {
   url.searchParams.set('limit', '20')
   url.searchParams.set('teamId', project.accountId)
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${await vercelToken()}`,
-    },
-  })
+  const response = await withNetworkRetry(
+    'Vercel deployment 상태 확인',
+    async () => fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${await vercelToken()}`,
+      },
+    }),
+    {shouldRetryResult: (result) => isRetryableHttpStatus(result.status)},
+  )
 
   const body = await response.json().catch(() => undefined) as {
     deployments?: Array<{state?: string; target?: string}>
