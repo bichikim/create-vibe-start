@@ -32,6 +32,12 @@ The mobile development commands run Vite in an `ios` or `android` mode, then lau
 export DEVELOPER_DIR=/path/to/Xcode.app/Contents/Developer
 ```
 
+Android commands require Android Studio, the Android SDK, and Android SDK Platform-Tools. If Android Studio installed the SDK somewhere custom, set `ANDROID_HOME` before running Android commands:
+
+```sh
+export ANDROID_HOME=/path/to/Android/sdk
+```
+
 To run on a physical device, set `CAP_SERVER_URL` to a URL reachable from that device before running `cap run`.
 
 Change the native app ID with:
