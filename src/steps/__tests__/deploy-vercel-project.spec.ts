@@ -705,7 +705,7 @@ describe('deployVercelProject', () => {
         throw missingVercelProjectLink()
       }
       if (String(path).endsWith('.env.migrate.local')) {
-        return 'TURSO_DATABASE_URL=libsql://test.turso.io\n'
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\nTURSO_AUTH_TOKEN=turso-token\n'
       }
       if (String(path).endsWith('.env.mobile')) {
         return ''
@@ -881,6 +881,57 @@ describe('deployVercelProject', () => {
     )
     expect(execaMock).not.toHaveBeenCalled()
     expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+  })
+
+  it('throws when remote Turso env is missing TURSO_AUTH_TOKEN', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=libsql://test.turso.io\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
+      'TURSO_AUTH_TOKEN을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.',
+    )
+
+    expect(rmMock).toHaveBeenCalledWith('/repo/my-app/apps/main-app/.env.migrate.local', {force: true})
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
+  })
+
+  it('allows local file Turso env without TURSO_AUTH_TOKEN', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        throw missingVercelProjectLink()
+      }
+      if (String(path).endsWith('.env.migrate.local')) {
+        return 'TURSO_DATABASE_URL=file:./data/app.db\n'
+      }
+      if (String(path).includes('auth.json')) {
+        return '{"token":"file-token"}'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
+
+    expect(execaMock).toHaveBeenCalledWith('pnpm', ['db:migrate'], {
+      cwd: '/repo/my-app/apps/main-app',
+      stdio: 'inherit',
+      env: expect.objectContaining({
+        TURSO_DATABASE_URL: 'file:./data/app.db',
+      }),
+    })
+    expect(runCommandMock).toHaveBeenCalledWith('vercel', ['--prod'], 'vercel --prod', '/repo/my-app')
   })
 
   it('throws a clear message when the Vercel auth file has no token', async () => {
