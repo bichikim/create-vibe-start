@@ -181,7 +181,7 @@ function vercelConfigDirectory(): string {
     return path.join(process.env.APPDATA, 'com.vercel.cli')
   }
 
-  return path.join(home, '.config', 'com.vercel.cli')
+  return path.join(process.env.XDG_DATA_HOME ?? path.join(home, '.local', 'share'), 'com.vercel.cli')
 }
 
 /**

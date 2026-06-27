@@ -1,5 +1,5 @@
 import {randomBytes} from 'node:crypto'
-import {access, mkdir, readFile, writeFile} from 'node:fs/promises'
+import {access, mkdir, readFile, rm, writeFile} from 'node:fs/promises'
 import {homedir} from 'node:os'
 import {join} from 'node:path'
 import {log} from '@clack/prompts'
@@ -208,14 +208,18 @@ async function ensureMobileApiUrl(projectDir: string, projectName: string) {
 
 async function pullVercelProductionEnv(projectDir: string) {
   const envFile = migrationEnvFile(projectDir)
-  await runCommand(
-    'vercel',
-    ['env', 'pull', envFile, '--environment', 'production', '--yes'],
-    'vercel env pull',
-    projectDir,
-  )
+  try {
+    await runCommand(
+      'vercel',
+      ['env', 'pull', envFile, '--environment', 'production', '--yes'],
+      'vercel env pull',
+      projectDir,
+    )
 
-  return readRepairEnvFromFile(envFile)
+    return await readRepairEnvFromFile(envFile)
+  } finally {
+    await rm(envFile, {force: true})
+  }
 }
 
 async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {

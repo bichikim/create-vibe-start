@@ -17,8 +17,9 @@ const logMock = vi.hoisted(() => ({
 const originalPlatform = process.platform
 const originalAppData = process.env.APPDATA
 const originalLocalAppData = process.env.LOCALAPPDATA
+const originalXdgDataHome = process.env.XDG_DATA_HOME
 
-function restoreEnvVar(name: 'APPDATA' | 'LOCALAPPDATA', value: string | undefined) {
+function restoreEnvVar(name: 'APPDATA' | 'LOCALAPPDATA' | 'XDG_DATA_HOME', value: string | undefined) {
   if (value === undefined) {
     delete process.env[name]
     return
@@ -54,6 +55,7 @@ describe('runResetEnvironment', () => {
     Object.defineProperty(process, 'platform', {value: originalPlatform, configurable: true})
     restoreEnvVar('APPDATA', originalAppData)
     restoreEnvVar('LOCALAPPDATA', originalLocalAppData)
+    restoreEnvVar('XDG_DATA_HOME', originalXdgDataHome)
     spawnMock.mockReset()
     accessMock.mockReset().mockRejectedValue(new Error('missing'))
     rmMock.mockReset()
@@ -293,13 +295,24 @@ describe('runResetEnvironment', () => {
     expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('Library/Caches/com.vercel.cli'))
   })
 
-  it('uses Linux-style Vercel config and cache paths outside macOS and Windows', async () => {
+  it('uses the Vercel Linux data auth path and cache path outside macOS and Windows', async () => {
     Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
+    delete process.env.XDG_DATA_HOME
     const {runResetEnvironment} = await import('../reset-environment')
 
     await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
 
-    expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('.config/com.vercel.cli'))
+    expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('.local/share/com.vercel.cli'))
     expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('.cache/com.vercel.cli'))
+  })
+
+  it('uses XDG_DATA_HOME for the Vercel Linux auth path when set', async () => {
+    Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
+    process.env.XDG_DATA_HOME = '/xdg-data'
+    const {runResetEnvironment} = await import('../reset-environment')
+
+    await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
+
+    expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('/xdg-data/com.vercel.cli'))
   })
 })

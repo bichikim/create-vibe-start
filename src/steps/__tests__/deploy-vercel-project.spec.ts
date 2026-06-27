@@ -3,6 +3,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest'
 const accessMock = vi.fn()
 const mkdirMock = vi.fn()
 const readFileMock = vi.fn()
+const rmMock = vi.fn()
 const writeFileMock = vi.fn()
 const runCommandMock = vi.fn()
 const logStepMock = vi.fn()
@@ -19,6 +20,7 @@ vi.mock('node:fs/promises', () => ({
   access: accessMock,
   mkdir: mkdirMock,
   readFile: readFileMock,
+  rm: rmMock,
   writeFile: writeFileMock,
 }))
 
@@ -90,6 +92,7 @@ describe('deployVercelProject', () => {
     accessMock.mockReset().mockResolvedValue(undefined)
     execaMock.mockReset().mockResolvedValue(undefined)
     mkdirMock.mockReset().mockResolvedValue(undefined)
+    rmMock.mockReset().mockResolvedValue(undefined)
     readFileMock.mockReset()
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {
@@ -198,6 +201,7 @@ describe('deployVercelProject', () => {
       'vercel env pull',
       '/repo/my-app',
     )
+    expect(rmMock).toHaveBeenCalledWith('/repo/my-app/apps/main-app/.env.migrate.local', {force: true})
     expect(execaMock).toHaveBeenCalledWith('pnpm', ['db:migrate'], {
       cwd: '/repo/my-app/apps/main-app',
       stdio: 'inherit',
@@ -860,6 +864,7 @@ describe('deployVercelProject', () => {
       'TURSO_DATABASE_URL을 찾을 수 없습니다. Turso 연동 후 다시 시도해주세요.',
     )
 
+    expect(rmMock).toHaveBeenCalledWith('/repo/my-app/apps/main-app/.env.migrate.local', {force: true})
     expect(runCommandMock).toHaveBeenNthCalledWith(
       2,
       'vercel',
