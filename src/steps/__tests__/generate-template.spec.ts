@@ -103,6 +103,7 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/vercel.json'), 'utf8')).resolves.toContain(
       '"buildCommand": "pnpm db:migrate && pnpm build"',
     )
+    await expect(readFile(join(projectDir, 'codemagic.yaml'), 'utf8')).resolves.toContain('android-release:')
     await expect(readFile(join(projectDir, 'vercel.json'), 'utf8')).rejects.toThrow()
     expect(logStepMock).toHaveBeenCalledWith('프로젝트 템플릿 생성')
     expect(logMessageMock).toHaveBeenCalledWith(`템플릿 파일 생성 완료: ${projectDir}`)
@@ -139,6 +140,10 @@ describe('generateTemplate', () => {
 
     expect(readme.startsWith('# my-app\n')).toBe(true)
     expect(readme).toContain('pnpm --filter @my-app/main-app db:migrate')
+    expect(readme).toContain('Mobile deployment with Codemagic')
+    expect(readme).toContain('VITE_API_URL')
+    expect(readme).toContain('Google Play `internal` track')
+    expect(readme).toContain('TestFlight')
     expect(appPackageJson.dependencies).toMatchObject({['better-auth']: 'catalog:'})
     expect(rootPackageJson.name).toBe('my-app')
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
@@ -243,9 +248,19 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
       "appId: 'com.vibestart.myapp'",
     )
-    await expect(readFile(join(projectDir, 'apps/main-app/android/app/build.gradle'), 'utf8')).resolves.toContain(
-      'applicationId "com.vibestart.myapp"',
-    )
+    const androidBuildGradle = await readFile(join(projectDir, 'apps/main-app/android/app/build.gradle'), 'utf8')
+    expect(androidBuildGradle).toContain('applicationId "com.vibestart.myapp"')
+    expect(androidBuildGradle).not.toContain('CM_KEYSTORE_PATH')
+    expect(androidBuildGradle).not.toContain('android_keystore')
+    const codemagicYaml = await readFile(join(projectDir, 'codemagic.yaml'), 'utf8')
+    expect(codemagicYaml).toContain('android-release:')
+    expect(codemagicYaml).toContain('ios-release:')
+    expect(codemagicYaml).toContain('pnpm --filter @my-app/main-app mobile:build')
+    expect(codemagicYaml).toContain('pnpm --filter @my-app/main-app cap:sync')
+    expect(codemagicYaml).toContain('CM_KEYSTORE_PATH')
+    expect(codemagicYaml).toContain('GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS')
+    expect(codemagicYaml).toContain('submit_to_testflight: true')
+    expect(codemagicYaml).toContain('PACKAGE_NAME: "com.vibestart.myapp"')
     await expect(
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/AndroidManifest.xml'), 'utf8'),
     ).resolves.toContain('android:name="com.vibestart.myapp.MainActivity"')

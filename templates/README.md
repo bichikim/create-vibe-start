@@ -70,4 +70,20 @@ pnpm ios:build
 pnpm android:build
 ```
 
-iOS builds target iOS Simulator and require macOS and Xcode. Android builds create a debug build and require Android Studio and the Android SDK. App signing, store upload, and production mobile server URL decisions are intentionally left for a later deployment plan.
+iOS builds target iOS Simulator and require macOS and Xcode. Android builds create a debug build and require Android Studio and the Android SDK.
+
+## Mobile deployment with Codemagic
+
+This project includes `codemagic.yaml` for iOS and Android store builds. It does not run until you connect this repository in Codemagic and start a workflow there.
+
+Before running a Codemagic workflow:
+
+1. Deploy the web/API app to Vercel and set `VITE_API_URL` in Codemagic to that production origin.
+2. Add an Android keystore in Codemagic code signing identities with the reference name `android_keystore`.
+3. Add `GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS` as a secret environment variable in a `google_play` group.
+4. Create an App Store Connect integration in Codemagic named `app_store_connect`.
+5. Confirm the native app ID with `pnpm app-id com.example.myapp` before the first store build.
+
+The `android-release` workflow builds a signed Android App Bundle and publishes it to the Google Play `internal` track. Google Play usually requires the first app version to be uploaded manually before automated track publishing works. The `ios-release` workflow builds an IPA with Codemagic iOS code signing and submits it to TestFlight.
+
+Codemagic injects Android release signing only inside the CI checkout; the repository `apps/main-app/android/app/build.gradle` stays unchanged for local development.
