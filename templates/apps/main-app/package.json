@@ -40,6 +40,7 @@
     "nitro": "catalog:",
     "pinia": "catalog:",
     "reka-ui": "catalog:",
+    "stripe": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",
     "vue": "catalog:",

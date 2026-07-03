@@ -18,6 +18,10 @@
       "from": ".env.example"
     },
     {
+      "from": "codemagic.yaml",
+      "template": true
+    },
+    {
       "from": "README.md",
       "template": true
     },

@@ -12,7 +12,7 @@ const allowedOrigins = new Set([
   ...env.BETTER_AUTH_TRUSTED_ORIGINS,
 ])
 
-function corsHeaders(origin: string | null) {
+function corsHeaders(origin: string | null): Record<string, string> {
   if (!origin || !allowedOrigins.has(origin)) {
     return {}
   }
