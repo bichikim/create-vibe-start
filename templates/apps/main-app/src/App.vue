@@ -36,19 +36,25 @@ async function signOut() {
             </RouterLink>
           </div>
 
-          <nav class="flex gap-2">
-          <RouterLink
-            class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
-            to="/"
-          >
-            Notes
-          </RouterLink>
-          <RouterLink
-            class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
-            to="/about"
-          >
-            About
-          </RouterLink>
+          <nav class="flex flex-wrap gap-2">
+            <RouterLink
+              class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
+              to="/"
+            >
+              Notes
+            </RouterLink>
+            <RouterLink
+              class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
+              to="/about"
+            >
+              About
+            </RouterLink>
+            <RouterLink
+              class="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 aria-[current=page]:border-slate-900 aria-[current=page]:bg-slate-900 aria-[current=page]:text-white"
+              to="/billing"
+            >
+              Billing
+            </RouterLink>
           </nav>
         </div>
       </header>

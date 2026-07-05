@@ -8,7 +8,7 @@ const packageDir = dirname(dirname(fileURLToPath(import.meta.url)))
 const withXcodeScript = join(packageDir, 'scripts/with-xcode.mjs')
 const withAndroidScript = join(packageDir, 'scripts/with-android.mjs')
 
-const mobileModes = {
+const mobileModes: Record<string, {command: string; args: string[]; reversePort?: boolean}> = {
   ios: {
     command: 'node',
     args: [withXcodeScript, 'cap', 'run', 'ios', '--live-reload', '--host', 'localhost'],
@@ -18,7 +18,7 @@ const mobileModes = {
     args: [withAndroidScript, 'cap', 'run', 'android', '--live-reload', '--host', 'localhost'],
     reversePort: true,
   },
-} satisfies Record<string, {command: string; args: string[]; reversePort?: boolean}>
+}
 
 const originalCi = process.env.CI
 

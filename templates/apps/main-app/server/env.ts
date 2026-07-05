@@ -35,6 +35,9 @@ const envInputSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1).default('dev-only-change-me'),
   BETTER_AUTH_URL: z.string().url().optional(),
   BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional().transform(parseTrustedOrigins),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_ID: z.string().optional(),
 })
 
 type EnvInput = z.infer<typeof envInputSchema>
