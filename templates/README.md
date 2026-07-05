@@ -15,6 +15,25 @@ Open `http://localhost:3000/login` to create an account. Notes can be listed wit
 
 Local development uses `TURSO_DATABASE_URL=file:./data/app.db`. Set `BETTER_AUTH_SECRET` to a random 32+ character value before production. Vercel deployment provisions Turso through the Marketplace with the `starter` plan in `iad1` and automatically injects `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. On Vercel, `BETTER_AUTH_URL` is resolved at runtime from `VERCEL_URL` / `VERCEL_PROJECT_PRODUCTION_URL` unless you set it explicitly. `create-vibe-start` sets production `BETTER_AUTH_SECRET` and runs `db:migrate` on Turso before the first deploy. Vercel builds also run `pnpm db:migrate` before `pnpm build`.
 
+## Stripe merch checkout
+
+The `/billing` route is a one-time physical goods example for a Vibe Start sticker pack. It creates a Stripe Checkout Session on the server, collects the Korean delivery address in Stripe Checkout, and returns to `/billing/success` or `/billing/cancel`.
+
+To enable it:
+
+1. Install Stripe from the Vercel Marketplace for the project, or create sandbox API keys in Stripe.
+2. Create a product and one-time price for the merch item in Stripe.
+3. Set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and `STRIPE_WEBHOOK_SECRET` in `apps/main-app/.env` for local development and in Vercel for production.
+4. Configure a Stripe webhook endpoint at `/api/stripe/webhook` for `checkout.session.completed`.
+
+Local webhook testing can use the Stripe CLI:
+
+```sh
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+Use the printed webhook signing secret as `STRIPE_WEBHOOK_SECRET`. Fulfillment is intentionally minimal: the webhook verifies the event and logs the Checkout Session payment and shipping details. Add order storage, inventory, shipment tracking, refunds, taxes, and coupons for a real store. Shipping is limited to Korea in `server/rpc/router.ts`, and delivery is treated as included in the Stripe price. This example is for physical goods; review App Store and Google Play billing rules before using Stripe for mobile digital goods.
+
 ## Mobile development
 
 This project includes Capacitor for local iOS and Android development.
