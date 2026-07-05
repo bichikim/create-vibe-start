@@ -25,6 +25,7 @@ Minimum code that solves the problem. Nothing speculative.
 ## Branch Sync
 
 - Before starting work, pull the current working branch from its remote to make sure it is up to date.
+- Before creating or starting work in a worktree, update `main` from its remote first so the worktree starts from the latest `main`.
 
 ## Dependency Installation
 
