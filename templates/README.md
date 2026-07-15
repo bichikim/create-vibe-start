@@ -103,6 +103,6 @@ Before running a Codemagic workflow:
 4. Create an App Store Connect integration in Codemagic named `app_store_connect`.
 5. Confirm the native app ID with `pnpm app-id com.example.myapp` before the first store build.
 
-The `android-release` workflow builds a signed Android App Bundle and publishes it to the Google Play `internal` track. Google Play usually requires the first app version to be uploaded manually before automated track publishing works. The `ios-release` workflow builds an IPA with Codemagic iOS code signing and submits it to TestFlight.
+The `android-release` workflow builds a signed Android App Bundle and publishes it to the Google Play `internal` track. Google Play usually requires the first app version to be uploaded manually before automated track publishing works. The `ios-release` workflow builds an IPA with Codemagic iOS code signing and submits it to TestFlight. Codemagic's `BUILD_NUMBER` is used for Android `versionCode` and iOS build number by default; set `ANDROID_VERSION_CODE`, `ANDROID_VERSION_NAME`, or `IOS_BUILD_NUMBER` in Codemagic if you need explicit release numbering.
 
 Codemagic injects Android release signing only inside the CI checkout; the repository `apps/main-app/android/app/build.gradle` stays unchanged for local development.

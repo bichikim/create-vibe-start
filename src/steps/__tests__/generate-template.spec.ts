@@ -107,6 +107,12 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/src/style.css'), 'utf8')).resolves.toContain(
       '@import "tailwindcss";',
     )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/style.css'), 'utf8')).resolves.toContain(
+      '.safe-page',
+    )
+    await expect(readFile(join(projectDir, 'apps/main-app/index.html'), 'utf8')).resolves.toContain(
+      'viewport-fit=cover',
+    )
     await expect(readFile(join(projectDir, 'apps/main-app/drizzle.config.ts'), 'utf8')).resolves.toContain(
       "dialect: 'turso'",
     )
@@ -241,7 +247,7 @@ describe('generateTemplate', () => {
     )
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
-    ).resolves.toContain('vite-capacitor <build <ios|android>|app-id <com.example.app>>')
+    ).resolves.toContain('lowercase reverse-domain notation')
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
     ).resolves.toContain("'--mode', 'mobile'")
@@ -271,6 +277,8 @@ describe('generateTemplate', () => {
     )
     const androidBuildGradle = await readFile(join(projectDir, 'apps/main-app/android/app/build.gradle'), 'utf8')
     expect(androidBuildGradle).toContain('applicationId "com.vibestart.myapp"')
+    expect(androidBuildGradle).toContain('System.getenv("ANDROID_VERSION_CODE")')
+    expect(androidBuildGradle).toContain('System.getenv("BUILD_NUMBER")')
     expect(androidBuildGradle).not.toContain('CM_KEYSTORE_PATH')
     expect(androidBuildGradle).not.toContain('android_keystore')
     const codemagicYaml = await readFile(join(projectDir, 'codemagic.yaml'), 'utf8')
@@ -280,8 +288,13 @@ describe('generateTemplate', () => {
     expect(codemagicYaml).toContain('pnpm --filter @my-app/main-app cap:sync')
     expect(codemagicYaml).toContain('CM_KEYSTORE_PATH')
     expect(codemagicYaml).toContain('GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS')
+    expect(codemagicYaml).toContain('NEXT_BUILD_NUMBER')
+    expect(codemagicYaml).toContain('CURRENT_PROJECT_VERSION')
     expect(codemagicYaml).toContain('submit_to_testflight: true')
     expect(codemagicYaml).toContain('PACKAGE_NAME: "com.vibestart.myapp"')
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/layout/activity_main.xml'), 'utf8'),
+    ).resolves.toContain('android:fitsSystemWindows="true"')
     await expect(
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/AndroidManifest.xml'), 'utf8'),
     ).resolves.toContain('android:name="com.vibestart.myapp.MainActivity"')
@@ -325,6 +338,25 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
     ).resolves.toContain('<string name="custom_url_scheme">com.example.changed</string>')
+
+    await expect(execFileAsync(process.execPath, [
+      join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'),
+      'app-id',
+      'com.example.my_app',
+    ], {cwd: join(projectDir, 'apps/main-app')})).rejects.toMatchObject({
+      stderr: expect.stringContaining('lowercase reverse-domain notation'),
+    })
+  })
+
+  it('keeps uppercase project name characters in the generated native app ID after lowercasing', async () => {
+    const projectDir = join(testDir, 'project')
+    const {generateTemplate} = await import('../generate-template')
+
+    await generateTemplate(projectDir, {projectName: 'My App'})
+
+    await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
+      "appId: 'com.vibestart.myapp'",
+    )
   })
 
   it('renders template directories from the manifest', async () => {
