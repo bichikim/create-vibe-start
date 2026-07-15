@@ -32,8 +32,8 @@ function run(command, args, options = {}) {
 }
 
 function validateAppId(appId) {
-  if (!/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(appId)) {
-    fail('App ID must use reverse-domain notation, for example: com.example.myapp')
+  if (!/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/u.test(appId)) {
+    fail('App ID must use lowercase reverse-domain notation, for example: com.example.myapp')
   }
 }
 

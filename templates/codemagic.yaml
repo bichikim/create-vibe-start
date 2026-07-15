@@ -82,6 +82,9 @@ workflows:
           xcode-project use-profiles --project "$XCODE_WORKSPACE"
       - name: Build iOS IPA
         script: |
+          export NEXT_BUILD_NUMBER="${IOS_BUILD_NUMBER:-$BUILD_NUMBER}"
+          test -n "$NEXT_BUILD_NUMBER"
+          perl -0pi -e 's/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $ENV{NEXT_BUILD_NUMBER};/g' "$XCODE_WORKSPACE/project.pbxproj"
           xcode-project build-ipa \
             --project "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"

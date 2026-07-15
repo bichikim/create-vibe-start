@@ -21,7 +21,7 @@ const defaultManifestFileName = 'template-manifest.json'
 const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
 
 function nativeAppIdFromProjectName(projectName: unknown) {
-  const suffix = typeof projectName === 'string' ? projectName.replaceAll(/[^a-z0-9]/gu, '') : ''
+  const suffix = typeof projectName === 'string' ? projectName.toLowerCase().replaceAll(/[^a-z0-9]/gu, '') : ''
 
   return `com.vibestart.${suffix || 'app'}`
 }

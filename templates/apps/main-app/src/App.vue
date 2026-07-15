@@ -12,7 +12,7 @@ async function signOut() {
 
 <template>
   <TooltipProvider>
-    <main class="mx-auto max-w-3xl px-5 py-12 text-slate-900">
+    <main class="safe-page mx-auto max-w-3xl text-slate-900">
       <header class="mb-8 flex items-center justify-between gap-5 max-sm:flex-col max-sm:items-stretch">
         <div>
           <p class="mb-1.5 text-sm text-slate-500">Nitro + Vue + oRPC + Drizzle + Better Auth</p>
