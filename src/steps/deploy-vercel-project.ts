@@ -5,6 +5,7 @@ import {join} from 'node:path'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
 import {execa} from 'execa'
+import {assertValidProjectName} from '../core/project-name'
 import {isRetryableHttpStatus, withNetworkRetry} from '../utils/network-retry'
 import {runCommand} from '../utils/run-command'
 
@@ -28,18 +29,26 @@ type DeployVercelProjectOptions = {
   githubRepository?: string
 }
 
+type VercelDeployment = {
+  state?: string
+  target?: string
+  url?: string
+}
+
 /**
  * 생성된 메인 앱을 GitHub 연동 Vercel 프로젝트로 만들고 프로덕션으로 배포합니다.
  *
  * @param projectDir - 생성된 프로젝트 루트 폴더입니다.
  * @param projectName - 연결할 Vercel 프로젝트 이름입니다.
  * @param options - 기존 Vercel 링크가 없을 때 사용할 GitHub 저장소 정보입니다.
+ * @returns 브라우저에서 열 수 있는 정규화된 production 배포 URL입니다.
  */
 export async function deployVercelProject(
   projectDir: string,
   projectName: string,
   options: DeployVercelProjectOptions = {},
 ) {
+  assertValidProjectName(projectName)
   await assertGeneratedProjectRoot(projectDir)
 
   log.step(chalk.bold('Vercel 배포'))
@@ -60,15 +69,15 @@ export async function deployVercelProject(
     await setBetterAuthSecret(project)
   }
 
-  if (
-    reusedLink &&
-    productionEnv.TURSO_DATABASE_URL &&
-    productionEnv.BETTER_AUTH_SECRET &&
-    await hasReadyProductionDeployment(project)
-  ) {
+  const existingDeployment =
+    reusedLink && productionEnv.TURSO_DATABASE_URL && productionEnv.BETTER_AUTH_SECRET
+      ? await findProductionDeployment(project)
+      : {ready: false, url: null}
+
+  if (existingDeployment.ready) {
     await ensureMobileApiUrl(projectDir, projectName)
     log.message(chalk.green(`Vercel repair 완료: ${projectName}은 이미 설정되어 있습니다.`))
-    return
+    return existingDeployment.url ?? defaultDeploymentUrl(projectName)
   }
 
   await migrateTursoDatabase(projectDir, productionEnv)
@@ -77,6 +86,16 @@ export async function deployVercelProject(
 
   log.message(chalk.green(`Vercel 배포 완료: ${projectName}`))
   log.message(chalk.dim('Better Auth URL은 Vercel 시스템 변수(VERCEL_URL)로 런타임에 결정됩니다.'))
+  try {
+    return (await findProductionDeployment(project)).url ?? defaultDeploymentUrl(projectName)
+  } catch (error) {
+    log.warn(`실제 배포 URL을 확인하지 못해 기본 URL을 사용합니다: ${String(error)}`)
+    return defaultDeploymentUrl(projectName)
+  }
+}
+
+function defaultDeploymentUrl(projectName: string) {
+  return new URL(`https://${projectName}.vercel.app`).toString()
 }
 
 async function assertGeneratedProjectRoot(projectDir: string) {
@@ -264,7 +283,7 @@ async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {
   return values
 }
 
-async function hasReadyProductionDeployment(project: VercelProject) {
+async function findProductionDeployment(project: VercelProject) {
   const url = new URL('https://api.vercel.com/v13/deployments')
   url.searchParams.set('projectId', project.id)
   url.searchParams.set('target', 'production')
@@ -282,16 +301,20 @@ async function hasReadyProductionDeployment(project: VercelProject) {
   )
 
   const body = await response.json().catch(() => undefined) as {
-    deployments?: Array<{state?: string; target?: string}>
+    deployments?: VercelDeployment[]
     error?: {message?: string}
   }
   if (!response.ok) {
     throw new Error(body?.error?.message ?? 'Vercel deployment 상태 확인에 실패했습니다.')
   }
 
-  return Boolean(body.deployments?.some((deployment) => (
-    deployment.state === 'READY' && deployment.target === 'production'
-  )))
+  const deployment = body.deployments?.find((candidate) => (
+    candidate.state === 'READY' && candidate.target === 'production'
+  ))
+  return {
+    ready: Boolean(deployment),
+    url: deployment?.url ? new URL(`https://${deployment.url}`).toString() : null,
+  }
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */

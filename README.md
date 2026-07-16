@@ -47,6 +47,12 @@ irm https://github.com/bichikim/create-vibe-start/releases/latest/download/insta
 
 `releases/latest` points at the newest **stable** release only, not alpha.
 
+### Desktop app
+
+The same GitHub Release also contains a signed macOS Universal DMG and Windows NSIS installer. The desktop app covers the project creation flow with tool setup, GitHub/Vercel login, progress, cancellation, and failed-step retry. The CLI remains fully supported, including `reset` and `repair vercel`.
+
+The app bundles its own pinned Node.js and GitHub CLI runtime, then installs pinned pnpm, Vercel CLI, and Codex CLI packages under the app data directory. It does not change the system PATH or global npm packages. Git remains a system prerequisite.
+
 ### Already have Node.js 22+
 
 Run the project creation flow (downloads `create-vibe-start` from npm and starts the interactive CLI):
@@ -147,7 +153,22 @@ After the tool setup checks, the CLI asks for a project name and directory, then
 pnpm install
 pnpm dev
 pnpm build
+pnpm desktop:dev
+pnpm desktop:build
 ```
+
+`pnpm build` continues to produce `dist/cli.js` and also creates the self-contained desktop worker. `pnpm desktop:build` synchronizes the Tauri version with `package.json` before building the native installer.
+
+Resource paths are resolved from the running module or app bundle, never from the current working directory:
+
+| Runtime | Templates | Desktop worker/runtime |
+|---|---|---|
+| CLI development | repository `templates/` | — |
+| Built CLI | `dist/templates/` beside `dist/cli.js` | — |
+| Desktop development | repository `dist/templates/` | repository `dist/desktop-worker/` and `src-tauri/runtime/` |
+| Installed desktop app | app resource `templates/` | app resource `desktop-worker/` and `runtime/` |
+
+`pnpm desktop:dev` runs `pnpm build` first so the development worker and copied templates always exist. Desktop path selection and bundle mappings are covered by both debug- and release-profile Rust tests.
 
 ### Git-less Docker sanity check (Linux)
 
@@ -197,10 +218,9 @@ Publish a new alpha in two local steps, then let GitHub Actions create the prere
 - Push or merge into `release/alpha` triggers `.github/workflows/alpha-release.yml`.
 - The workflow reads `package.json` version and compares it against the latest npm alpha version for `create-vibe-start`.
 - Release runs only when `package.json` is an alpha version and strictly newer than npm's latest alpha.
-- On pass, it creates `v<package.json version>` tag and a GitHub prerelease via:
-  - `gh release create ... --title "v<version>" --generate-notes --prerelease`
-- The release includes `install.sh`, `install.ps1`, and `SHA256SUMS` (package and Node.js versions baked into the installers).
-- The workflow requires `RELEASE_TOKEN` repository secret (PAT or GitHub App token) for release creation so `release: published` can trigger downstream publish workflow.
+- On pass, it creates the `v<package.json version>` tag and a draft GitHub prerelease containing `install.sh`, `install.ps1`, and `SHA256SUMS`.
+- It dispatches the signed desktop build. The draft is published only after notarized macOS Universal DMG, Authenticode-signed Windows NSIS, and signed updater artifacts all pass verification.
+- The workflow requires the release and signing secrets listed in [`docs/desktop-release.md`](docs/desktop-release.md).
 - npm publish is not executed in `alpha-release.yml`.
 - The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
 - Because prereleases have `prerelease: true`, the existing publish flow resolves npm dist-tag to `alpha`.
@@ -242,10 +262,9 @@ Publish a new stable release the same way as alpha: bump `package.json` locally,
 - Push or merge into `release/latest` triggers `.github/workflows/latest-release.yml`.
 - The workflow reads `package.json` version and compares it against the latest npm stable version for `create-vibe-start` (prereleases such as `-alpha.` are ignored).
 - Release runs only when `package.json` is a stable semver (`x.y.z` with no prerelease suffix) and strictly newer than npm's latest stable.
-- On pass, it creates `v<package.json version>` tag and a GitHub release via:
-  - `gh release create ... --title "v<version>" --generate-notes` (not a prerelease)
-- The release includes `install.sh`, `install.ps1`, and `SHA256SUMS` (package and Node.js versions baked into the installers).
-- The workflow requires `RELEASE_TOKEN` repository secret (PAT or GitHub App token) for release creation so `release: published` can trigger downstream publish workflow.
+- On pass, it creates the `v<package.json version>` tag and a draft GitHub release containing `install.sh`, `install.ps1`, and `SHA256SUMS`.
+- It dispatches the signed desktop build. The draft is published only after notarized macOS Universal DMG, Authenticode-signed Windows NSIS, and signed updater artifacts all pass verification.
+- The workflow requires the release and signing secrets listed in [`docs/desktop-release.md`](docs/desktop-release.md).
 - npm publish is not executed in `latest-release.yml`.
 - The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
 - Because stable releases are not prereleases, the publish flow resolves npm dist-tag to `latest`.

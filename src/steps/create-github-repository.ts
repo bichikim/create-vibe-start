@@ -3,6 +3,11 @@ import chalk from 'chalk'
 import {withNetworkRetry} from '../utils/network-retry'
 import {runCommand, runCommandQuietly} from '../utils/run-command'
 
+export type GitCommitIdentity = {
+  name: string
+  email: string
+}
+
 /**
  * 생성된 프로젝트를 GitHub CLI 로그인 계정의 새 저장소로 올립니다.
  *
@@ -10,11 +15,11 @@ import {runCommand, runCommandQuietly} from '../utils/run-command'
  * @param projectName - 생성할 GitHub 저장소 이름입니다.
  * @returns 생성된 GitHub 저장소의 owner/name 형식 이름입니다.
  */
-export async function createGitHubRepository(projectDir: string, projectName: string) {
+export async function createGitHubRepository(projectDir: string, projectName: string, identity?: GitCommitIdentity) {
   log.step(chalk.bold('GitHub 저장소 생성'))
 
   await runCommand('git', ['init'], 'git init', projectDir)
-  await ensureGitCommitIdentity(projectDir)
+  await ensureGitCommitIdentity(projectDir, identity)
   await runCommand('git', ['add', '.'], 'git add .', projectDir)
   await runCommand('git', ['commit', '-m', 'Initial commit'], 'git commit -m "Initial commit"', projectDir)
   await runCommand(
@@ -23,26 +28,32 @@ export async function createGitHubRepository(projectDir: string, projectName: st
     `gh repo create ${projectName} --private --source . --remote origin --push`,
     projectDir,
   )
-  const result = await withNetworkRetry(
-    'gh repo view',
-    () => runCommandQuietly(
-      'gh',
-      ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
-      projectDir,
-    ),
+  const result = await withNetworkRetry('gh repo view', () =>
+    runCommandQuietly('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], projectDir),
   )
 
   log.message(chalk.green(`GitHub 저장소 생성 완료: ${projectName}`))
   return result.stdout.trim()
 }
 
-async function ensureGitCommitIdentity(projectDir: string) {
+async function ensureGitCommitIdentity(projectDir: string, identity?: GitCommitIdentity) {
   const [name, email] = await Promise.all([
     readGitConfig(projectDir, 'user.name'),
     readGitConfig(projectDir, 'user.email'),
   ])
 
   if (name && email) {
+    return
+  }
+
+  if (identity) {
+    const authorName = identity.name.trim()
+    const authorEmail = identity.email.trim()
+    if (!authorName || !authorEmail.includes('@')) {
+      throw new Error('Git commit 작성자 이름과 이메일을 확인해주세요.')
+    }
+    await runCommand('git', ['config', 'user.name', authorName], 'git config user.name', projectDir)
+    await runCommand('git', ['config', 'user.email', authorEmail], 'git config user.email', projectDir)
     return
   }
 

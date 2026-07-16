@@ -24,7 +24,7 @@ describe('resolveDefaultTemplateDir', () => {
   it('uses repo-root templates in development', async () => {
     const {resolveDefaultTemplateDir} = await import('../generate-template')
 
-    expect(resolveDefaultTemplateDir()).toBe('templates')
+    expect(resolveDefaultTemplateDir('file:///repo/src/steps/generate-template.ts')).toBe('/repo/templates')
   })
 
   it('uses the bundled templates directory in production', async () => {
@@ -84,9 +84,7 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
       '"vue-router": "catalog:"',
     )
-    await expect(readFile(join(projectDir, 'apps/main-app/src/App.vue'), 'utf8')).resolves.toContain(
-      '<RouterView />',
-    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/App.vue'), 'utf8')).resolves.toContain('<RouterView />')
     await expect(readFile(join(projectDir, 'apps/main-app/src/App.vue'), 'utf8')).resolves.toContain('Billing')
     await expect(readFile(join(projectDir, 'apps/main-app/src/router.ts'), 'utf8')).resolves.toContain(
       "path: '/billing'",
@@ -232,7 +230,7 @@ describe('generateTemplate', () => {
     })
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-xcode.mjs'), 'utf8'),
-    ).resolves.toContain("DEVELOPER_DIR: developerDir")
+    ).resolves.toContain('DEVELOPER_DIR: developerDir')
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/with-xcode.mjs'), 'utf8'),
     ).resolves.toContain('Install Xcode from the App Store, then run this iOS command again.')
@@ -248,11 +246,14 @@ describe('generateTemplate', () => {
     await expect(
       readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
     ).resolves.toContain('lowercase reverse-domain notation')
-    await expect(
-      readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
-    ).resolves.toContain("'--mode', 'mobile'")
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
+      'vite-capacitor <build <ios|android>|app-id <com.example.app>>',
+    )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
+      "'--mode', 'mobile'",
+    )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
-      "scripts/with-android.mjs",
+      'scripts/with-android.mjs',
     )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
       "'adb', 'reverse'",
@@ -260,9 +261,9 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/src/index.ts'), 'utf8')).resolves.toContain(
       "'--host', 'localhost'",
     )
-    await expect(
-      readFile(join(projectDir, 'apps/main-app/server/routes/rpc/[...].ts'), 'utf8'),
-    ).resolves.toContain("'capacitor://localhost'")
+    await expect(readFile(join(projectDir, 'apps/main-app/server/routes/rpc/[...].ts'), 'utf8')).resolves.toContain(
+      "'capacitor://localhost'",
+    )
     await expect(readFile(join(projectDir, 'apps/main-app/server/auth.ts'), 'utf8')).resolves.toContain(
       "'capacitor://localhost'",
     )
@@ -314,11 +315,11 @@ describe('generateTemplate', () => {
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
     ).resolves.toContain('<string name="package_name">com.vibestart.myapp</string>')
 
-    await execFileAsync(process.execPath, [
-      join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'),
-      'app-id',
-      'com.example.changed',
-    ], {cwd: join(projectDir, 'apps/main-app')})
+    await execFileAsync(
+      process.execPath,
+      [join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'app-id', 'com.example.changed'],
+      {cwd: join(projectDir, 'apps/main-app')},
+    )
 
     await expect(readFile(join(projectDir, 'apps/main-app/capacitor.config.ts'), 'utf8')).resolves.toContain(
       "appId: 'com.example.changed'",
@@ -411,9 +412,7 @@ describe('generateTemplate', () => {
 
     const blankOverrideProjectDir = join(testDir, 'blank-override-project')
     await generateTemplate(blankOverrideProjectDir, {projectName: 'my-app', nativeAppId: '   '}, templateDir)
-    await expect(readFile(join(blankOverrideProjectDir, 'native.txt'), 'utf8')).resolves.toBe(
-      'com.vibestart.myapp\n',
-    )
+    await expect(readFile(join(blankOverrideProjectDir, 'native.txt'), 'utf8')).resolves.toBe('com.vibestart.myapp\n')
 
     const customOverrideProjectDir = join(testDir, 'custom-override-project')
     await generateTemplate(

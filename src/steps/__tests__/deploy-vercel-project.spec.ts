@@ -123,7 +123,11 @@ describe('deployVercelProject', () => {
   it('creates a Git-connected Vercel project, writes local link metadata, and deploys to production', async () => {
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
+    const deploymentUrl = await deployVercelProject('/repo/my-app', 'my-app', {
+      githubRepository: 'bichikim/my-app',
+    })
+
+    expect(deploymentUrl).toBe('https://my-app.vercel.app/')
 
     expect(accessMock).toHaveBeenCalledWith('/repo/my-app/apps/main-app/package.json')
     expect(fetchMock).toHaveBeenCalledWith('https://api.vercel.com/v11/projects', {
@@ -224,6 +228,29 @@ describe('deployVercelProject', () => {
     )
   })
 
+  it('falls back to the normalized project URL when the deployed URL cannot be queried', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === 'https://api.vercel.com/v11/projects') {
+        return {ok: true, json: () => Promise.resolve({id: 'prj_123', accountId: 'team_123'})}
+      }
+      if (url.includes('/env?')) {
+        return {ok: true, json: () => Promise.resolve({})}
+      }
+      if (url.startsWith('https://api.vercel.com/v13/deployments')) {
+        return {ok: false, status: 401, json: () => Promise.resolve({error: {message: 'unauthorized'}})}
+      }
+      return {ok: true, json: () => Promise.resolve({})}
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(
+      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
+    ).resolves.toBe('https://my-app.vercel.app/')
+    expect(logWarnMock).toHaveBeenCalledWith(
+      '실제 배포 URL을 확인하지 못해 기본 URL을 사용합니다: Error: unauthorized',
+    )
+  })
+
   it('retries production deployment status checks on retryable HTTP responses', async () => {
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {
@@ -261,7 +288,9 @@ describe('deployVercelProject', () => {
         return {
           ok: true,
           status: 200,
-          json: () => Promise.resolve({deployments: [{state: 'READY', target: 'production'}]}),
+          json: () => Promise.resolve({
+            deployments: [{state: 'READY', target: 'production', url: 'my-app-team.vercel.app'}],
+          }),
         }
       }
 
@@ -273,7 +302,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBeUndefined()
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBe('https://my-app-team.vercel.app/')
 
     expect(fetchMock.mock.calls.filter(([url]) => (
       String(url).startsWith('https://api.vercel.com/v13/deployments')
@@ -363,7 +392,7 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBeUndefined()
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBe('https://my-app.vercel.app/')
 
     expect(runCommandMock.mock.calls.filter(([command, args]) => (
       command === 'vercel' && args[0] === 'env'
@@ -387,6 +416,20 @@ describe('deployVercelProject', () => {
       command === 'vercel' && args[0] === 'env'
     ))).toHaveLength(1)
     expect(logWarnMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid project name before files or external services are used', async () => {
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(
+      deployVercelProject('/repo/My-app', 'My-app', {githubRepository: 'bichikim/My-app'}),
+    ).rejects.toThrow('대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.')
+
+    expect(accessMock).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(runCommandMock).not.toHaveBeenCalled()
+    expect(execaMock).not.toHaveBeenCalled()
+    expect(logStepMock).not.toHaveBeenCalled()
   })
 
   it('rejects a directory that is not a generated project root before external setup', async () => {
@@ -870,6 +913,11 @@ describe('deployVercelProject', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({}),
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({deployments: []}),
     })
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {

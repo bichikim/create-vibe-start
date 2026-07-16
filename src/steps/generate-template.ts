@@ -1,9 +1,9 @@
-import {cp, readFile, stat} from 'node:fs/promises'
+import {cp, mkdir, readdir, readFile, stat, writeFile} from 'node:fs/promises'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {log} from '@clack/prompts'
-import nodePlop from 'node-plop'
 import chalk from 'chalk'
+import Handlebars from 'handlebars'
 
 type TemplateFile = {
   from: string
@@ -36,12 +36,30 @@ function templateAnswers(answers: Answers) {
   return mergedAnswers
 }
 
-/** production 빌드(import.meta.env.PROD)는 패키지 옆 dist/templates, dev/test는 repo 루트 templates를 사용합니다. */
-export function resolveDefaultTemplateDir(moduleUrl: string = import.meta.url): string {
-  if (import.meta.env?.PROD) {
-    return join(dirname(fileURLToPath(moduleUrl)), 'templates')
+async function renderTemplatePath(source: string, destination: string, answers: Answers) {
+  const sourceStat = await stat(source)
+  if (sourceStat.isDirectory()) {
+    await mkdir(destination, {recursive: true})
+    await Promise.all(
+      (await readdir(source)).map((entry) =>
+        renderTemplatePath(join(source, entry), join(destination, entry), answers),
+      ),
+    )
+    return
   }
-  return 'templates'
+
+  const template = Handlebars.compile(await readFile(source, 'utf8'), {noEscape: true})
+  await mkdir(dirname(destination), {recursive: true})
+  await writeFile(destination, template(answers), 'utf8')
+}
+
+/** Resolves templates from the module location so CLI execution never depends on the current directory. */
+export function resolveDefaultTemplateDir(moduleUrl: string = import.meta.url): string {
+  const moduleDir = dirname(fileURLToPath(moduleUrl))
+  if (import.meta.env?.PROD) {
+    return join(moduleDir, 'templates')
+  }
+  return join(moduleDir, '..', '..', 'templates')
 }
 
 /**
@@ -73,42 +91,14 @@ export async function generateTemplate(
       }),
   )
 
-  const actions = await Promise.all(
-    files.filter((file) => file.template).map(async (file) => {
-      const source = join(templateDir, file.from)
-      const isDirectory = await stat(source).then((info) => info.isDirectory(), () => false)
-      if (isDirectory) {
-        return {
-          type: 'addMany' as const,
-          destination: join(projectDir, file.to ?? file.from),
-          base: source,
-          templateFiles: join(source, '**/*'),
-          globOptions: {dot: true},
-          force: true,
-        }
-      }
-      return {
-        type: 'add' as const,
-        path: join(projectDir, file.to ?? file.from),
-        templateFile: source,
-        force: true,
-      }
-    }),
+  const resolvedAnswers = templateAnswers(answers)
+  await Promise.all(
+    files
+      .filter((file) => file.template)
+      .map((file) =>
+        renderTemplatePath(join(templateDir, file.from), join(projectDir, file.to ?? file.from), resolvedAnswers),
+      ),
   )
-
-  const plop = await nodePlop()
-  const generator = plop.setGenerator('vibe-start', {
-    description: 'Create the initial vibe project files.',
-    prompts: [],
-    actions,
-  })
-  const result = await generator.runActions(templateAnswers(answers))
-
-  if (result.failures.length > 0) {
-    // Ignored because node-plop normally provides `error`; `message` is only a defensive fallback.
-    /* v8 ignore next */
-    throw new Error(result.failures.map((failure) => failure.error || failure.message).join('\n'))
-  }
 
   log.message(chalk.green(`템플릿 파일 생성 완료: ${projectDir}`))
 }
