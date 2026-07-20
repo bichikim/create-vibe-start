@@ -2,14 +2,14 @@
 set -euo pipefail
 
 TARGET="${1:?Usage: prepare-desktop-runtime.sh <darwin-universal|darwin-arm64|darwin-x64|windows-x64>}"
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MANIFEST="${ROOT_DIR}/desktop/toolchain.json"
-RUNTIME_DIR="${ROOT_DIR}/src-tauri/runtime"
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+MANIFEST="desktop/toolchain.json"
+RUNTIME_DIR="src-tauri/runtime"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TEMP_DIR}"' EXIT
 
-NODE_VERSION="$(node -p "require('${MANIFEST}').node")"
-GH_VERSION="$(node -p "require('${MANIFEST}').gh")"
+NODE_VERSION="$(node -p "require('./${MANIFEST}').node")"
+GH_VERSION="$(node -p "require('./${MANIFEST}').gh")"
 CHECKSUM_PAIRS=()
 
 download() {
@@ -120,4 +120,4 @@ case "${TARGET}" in
     ;;
 esac
 
-node "${ROOT_DIR}/scripts/write-toolchain-checksums.mjs" "${MANIFEST}" "${CHECKSUM_PAIRS[@]}"
+node "scripts/write-toolchain-checksums.mjs" "${MANIFEST}" "${CHECKSUM_PAIRS[@]}"
