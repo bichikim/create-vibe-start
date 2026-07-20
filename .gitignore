@@ -8,3 +8,12 @@ coverage
 .history
 .idea
 .test-project
+dist-desktop
+src-tauri/target
+src-tauri/gen
+src-tauri/runtime/*
+!src-tauri/runtime/.gitkeep
+src-tauri/icons/ios
+src-tauri/icons/Square*Logo.png
+src-tauri/icons/StoreLogo.png
+src-tauri/icons/64x64.png

@@ -131,6 +131,57 @@ describe('createGitHubRepository', () => {
     expect(runCommandMock).toHaveBeenNthCalledWith(4, 'git', ['add', '.'], 'git add .', '/repo/my-app')
   })
 
+  it('uses the supplied desktop git identity without prompting', async () => {
+    runCommandQuietlyMock.mockImplementation(async (command: string) => {
+      if (command === 'git') {
+        throw new Error('missing identity')
+      }
+      return {stdout: 'bichikim/my-app\n'}
+    })
+    const {createGitHubRepository} = await import('../create-github-repository')
+
+    await createGitHubRepository('/repo/my-app', 'my-app', {
+      name: '  Desktop User  ',
+      email: '  desktop@example.com  ',
+    })
+
+    expect(confirmMock).not.toHaveBeenCalled()
+    expect(textMock).not.toHaveBeenCalled()
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      2,
+      'git',
+      ['config', 'user.name', 'Desktop User'],
+      'git config user.name',
+      '/repo/my-app',
+    )
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      3,
+      'git',
+      ['config', 'user.email', 'desktop@example.com'],
+      'git config user.email',
+      '/repo/my-app',
+    )
+  })
+
+  it.each([
+    {name: ' ', email: 'desktop@example.com'},
+    {name: 'Desktop User', email: 'invalid-email'},
+  ])('rejects invalid supplied desktop git identity', async (identity) => {
+    runCommandQuietlyMock.mockImplementation(async (command: string) => {
+      if (command === 'git') {
+        throw new Error('missing identity')
+      }
+      return {stdout: 'bichikim/my-app\n'}
+    })
+    const {createGitHubRepository} = await import('../create-github-repository')
+
+    await expect(createGitHubRepository('/repo/my-app', 'my-app', identity)).rejects.toThrow(
+      'Git commit 작성자 이름과 이메일을 확인해주세요.',
+    )
+
+    expect(runCommandMock).toHaveBeenCalledTimes(1)
+  })
+
   it('retries the read-only GitHub repository lookup when it fails with a network error', async () => {
     runCommandQuietlyMock.mockImplementation(async (command: string, args: string[]) => {
       if (command === 'git' && args[1] === 'user.name') {

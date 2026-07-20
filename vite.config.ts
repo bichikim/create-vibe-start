@@ -40,8 +40,8 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/cli.ts'),
-      fileName: () => 'cli.js',
+      entry: {cli: resolve(__dirname, 'src/cli.ts')},
+      fileName: (_format, entryName) => `${entryName}.js`,
       formats: ['es'],
     },
     minify: false,

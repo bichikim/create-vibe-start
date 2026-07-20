@@ -1,0 +1,203 @@
+name: Signed Desktop Release
+
+on:
+  repository_dispatch:
+    types: [desktop-release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release tag
+        required: true
+        type: string
+      prerelease:
+        description: Publish as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-${{ github.event.client_payload.tag || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  desktop-build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-14
+            platform: macos
+            runtime: darwin-universal
+            target: universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            bundles: dmg
+          - os: windows-latest
+            platform: windows
+            runtime: windows-x64
+            target: x86_64-pc-windows-msvc
+            rust-targets: x86_64-pc-windows-msvc
+            bundles: nsis
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+      DESKTOP_PLATFORM: ${{ matrix.platform }}
+      TAURI_UPDATER_PUBLIC_KEY: ${{ secrets.TAURI_UPDATER_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY_PASSWORD }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate signing secrets
+        shell: bash
+        run: |
+          test -n "${TAURI_UPDATER_PUBLIC_KEY}"
+          test -n "${TAURI_SIGNING_PRIVATE_KEY}"
+          if [ "${DESKTOP_PLATFORM}" = "macos" ]; then
+            test -n "${APPLE_CERTIFICATE}"
+            test -n "${APPLE_CERTIFICATE_PASSWORD}"
+            test -n "${APPLE_SIGNING_IDENTITY}"
+            test -n "${APPLE_API_ISSUER}"
+            test -n "${APPLE_API_KEY}"
+            test -n "${APPLE_API_KEY_CONTENT}"
+          else
+            test -n "${WINDOWS_CERTIFICATE}"
+            test -n "${WINDOWS_CERTIFICATE_PASSWORD}"
+          fi
+
+      - name: Prepare bundled tool runtime
+        shell: bash
+        run: bash scripts/prepare-desktop-runtime.sh "${{ matrix.runtime }}"
+
+      - name: Prepare macOS notarization key
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          KEY_PATH="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "${APPLE_API_KEY_CONTENT}" > "${KEY_PATH}"
+          echo "APPLE_API_KEY_PATH=${KEY_PATH}" >> "${GITHUB_ENV}"
+
+      - name: Import Windows signing certificate
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'desktop-signing.pfx'
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          "WINDOWS_CERT_THUMBPRINT=$($certificate.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure signed updater build
+        shell: bash
+        run: |
+          pnpm desktop:prepare
+          echo "TAURI_CONFIG=$(node scripts/desktop-release-config.mjs)" >> "${GITHUB_ENV}"
+
+      - name: Build signed desktop installer
+        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+
+      - name: Verify macOS signature and notarization
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          APP_PATH="src-tauri/target/universal-apple-darwin/release/bundle/macos/Vibe Start.app"
+          DMG_PATH="$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -name '*.dmg' -print -quit)"
+          codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
+          spctl --assess --type execute --verbose=2 "${APP_PATH}"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "${DMG_PATH}"
+
+      - name: Verify Windows Authenticode signature
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -Filter *.exe | Select-Object -First 1
+          $signature = Get-AuthenticodeSignature $installer.FullName
+          if ($signature.Status -ne 'Valid') {
+            throw "Windows installer signature is $($signature.Status)."
+          }
+
+      - name: Collect macOS artifacts
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          mkdir -p desktop-artifacts
+          find src-tauri/target/universal-apple-darwin/release/bundle -type f \
+            \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.app.tar.gz.sig' \) \
+            -exec cp {} desktop-artifacts/ \;
+
+      - name: Collect Windows artifacts
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force desktop-artifacts | Out-Null
+          Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle -Recurse -File |
+            Where-Object { $_.Name -match '\.(exe|nsis\.zip|nsis\.zip\.sig)$' } |
+            Copy-Item -Destination desktop-artifacts
+
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: desktop-artifacts/*
+          if-no-files-found: error
+
+  publish:
+    needs: desktop-build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+      PRERELEASE: ${{ github.event.client_payload.prerelease || inputs.prerelease }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Download signed artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: desktop-artifacts
+          merge-multiple: true
+
+      - name: Create signed updater manifest
+        run: node scripts/create-updater-manifest.mjs desktop-artifacts "${TAG}" "${GITHUB_REPOSITORY}" latest.json
+
+      - name: Upload desktop assets to draft release
+        run: gh release upload "${TAG}" desktop-artifacts/* latest.json --clobber
+
+      - name: Publish release after every signed build succeeds
+        run: gh release edit "${TAG}" --draft=false --prerelease="${PRERELEASE}"

@@ -1,6 +1,5 @@
 import {isCancel, text} from '@clack/prompts'
-
-const projectNamePattern = /^[a-z0-9][a-z0-9-]*$/u
+import {projectNameValidationError} from '../core/project-name'
 
 /**
  * 새 프로젝트와 GitHub 저장소에 사용할 이름을 입력받습니다.
@@ -12,15 +11,7 @@ export async function selectProjectName(): Promise<string | null> {
     message: '프로젝트 이름을 입력해주세요.',
     placeholder: 'my-vibe-app',
     validate(value) {
-      const name = value.trim()
-
-      if (!name) {
-        return '프로젝트 이름을 입력해주세요.'
-      }
-
-      if (!projectNamePattern.test(name)) {
-        return '소문자, 숫자, 하이픈만 사용할 수 있고 첫 글자는 소문자나 숫자여야 합니다.'
-      }
+      return projectNameValidationError(value)
     },
   })
 

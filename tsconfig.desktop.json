@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": ".",
+    "types": ["node", "vite/client"],
+    "noEmit": true
+  },
+  "include": ["desktop/**/*.ts", "desktop/**/*.vue", "src/core/**/*.ts"]
+}

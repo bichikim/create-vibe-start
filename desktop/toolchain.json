@@ -1,0 +1,11 @@
+{
+  "node": "22.22.3",
+  "pnpm": "11.1.2",
+  "gh": "2.95.0",
+  "vercel": "54.17.3",
+  "codex": "0.142.2",
+  "checksums": {
+    "node-v22.22.3-darwin-arm64.tar.gz": "0da7ff74ef8611328c8212f17943368713a2ad953fb7d89a8c8a0eae87c23207",
+    "gh_2.95.0_macOS_arm64.zip": "3677f9c27965825f9c7d50395473c134edaea4b484373ef6b25de653570a0489"
+  }
+}

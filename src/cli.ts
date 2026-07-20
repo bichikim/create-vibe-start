@@ -5,6 +5,7 @@ import {Command} from 'commander'
 import {confirm, isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
 import {runResetEnvironment} from './commands/reset-environment'
+import {type ProgressPort, runWorkflowStep} from './core/workflow'
 import {createGitHubRepository} from './steps/create-github-repository'
 import {deployVercelProject} from './steps/deploy-vercel-project'
 import {generateTemplate} from './steps/generate-template'
@@ -41,6 +42,8 @@ type CreatedProject = {
   projectDir: string
   projectName: string
 }
+
+const cliWorkflowProgress: ProgressPort = {report: () => undefined}
 
 /**
  * create-vibe-start 명령과 하위 명령을 구성합니다.
@@ -98,17 +101,37 @@ export function createProgram() {
           return
         }
 
-        await generateTemplate(projectDir, {projectName})
-        const dependenciesInstalled = await installDependencies(projectDir)
+        await runWorkflowStep(
+          'generate-template',
+          () => generateTemplate(projectDir, {projectName}),
+          cliWorkflowProgress,
+        )
+        const dependenciesInstalled = await runWorkflowStep(
+          'install-dependencies',
+          () => installDependencies(projectDir),
+          cliWorkflowProgress,
+        )
 
         const createdProject = {projectDir, projectName}
-        const githubRepositoryCreated = await maybeCreateGitHubRepository(options, results, createdProject)
-        await maybeDeployVercelProject(options, results, createdProject, githubRepositoryCreated)
+        const githubRepositoryCreated = await runWorkflowStep(
+          'create-github-repository',
+          () => maybeCreateGitHubRepository(options, results, createdProject),
+          cliWorkflowProgress,
+        )
+        await runWorkflowStep(
+          'deploy-vercel',
+          () => maybeDeployVercelProject(options, results, createdProject, githubRepositoryCreated),
+          cliWorkflowProgress,
+        )
 
         let finalResults = results
         if (!options.skipCodex) {
           const codexResult = results.find((result) => result.name === 'Codex')
-          const launched = await launchCodexApp(projectDir, codexResult, dependenciesInstalled)
+          const launched = await runWorkflowStep(
+            'launch-codex',
+            () => launchCodexApp(projectDir, codexResult, dependenciesInstalled),
+            cliWorkflowProgress,
+          )
           finalResults = withCodexAppReadyMessage(results, launched)
         }
 
@@ -120,9 +143,7 @@ export function createProgram() {
       }
     })
 
-  const repairCommand = program
-    .command('repair')
-    .description('Repair partial setup failures.')
+  const repairCommand = program.command('repair').description('Repair partial setup failures.')
 
   repairCommand
     .command('vercel')
