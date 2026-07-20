@@ -6,6 +6,7 @@ import path from 'node:path'
 import {intro, isCancel, log, note, outro, text} from '@clack/prompts'
 import chalk from 'chalk'
 import {commandExists} from '../utils/command-exists'
+import {userCacheDirectory, userDataDirectory} from '../utils/user-directories'
 
 /** CLI 환경 초기화를 위해 실행할 외부 명령 단계입니다. */
 type CommandStep = {
@@ -173,15 +174,7 @@ function vercelSteps(packageManagers: PackageManager[]): Step[] {
  * @returns Vercel CLI 설정 폴더 경로입니다.
  */
 function vercelConfigDirectory(): string {
-  if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', 'com.vercel.cli')
-  }
-
-  if (platform === 'win32' && process.env.APPDATA) {
-    return path.join(process.env.APPDATA, 'com.vercel.cli')
-  }
-
-  return path.join(process.env.XDG_DATA_HOME ?? path.join(home, '.local', 'share'), 'com.vercel.cli')
+  return path.join(userDataDirectory(), 'com.vercel.cli')
 }
 
 /**
@@ -190,15 +183,7 @@ function vercelConfigDirectory(): string {
  * @returns Vercel CLI 캐시 폴더 경로입니다.
  */
 function vercelCacheDirectory(): string {
-  if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Caches', 'com.vercel.cli')
-  }
-
-  if (platform === 'win32' && process.env.LOCALAPPDATA) {
-    return path.join(process.env.LOCALAPPDATA, 'com.vercel.cli')
-  }
-
-  return path.join(home, '.cache', 'com.vercel.cli')
+  return path.join(userCacheDirectory(), 'com.vercel.cli')
 }
 
 /**

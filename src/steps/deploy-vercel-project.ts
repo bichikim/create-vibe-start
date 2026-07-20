@@ -1,6 +1,5 @@
 import {randomBytes} from 'node:crypto'
 import {access, mkdir, readFile, rm, writeFile} from 'node:fs/promises'
-import {homedir} from 'node:os'
 import {join} from 'node:path'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
@@ -8,6 +7,7 @@ import {execa} from 'execa'
 import {assertValidProjectName} from '../core/project-name'
 import {isRetryableHttpStatus, withNetworkRetry} from '../utils/network-retry'
 import {runCommand} from '../utils/run-command'
+import {userDataDirectory} from '../utils/user-directories'
 
 type VercelProject = {
   id: string
@@ -402,13 +402,5 @@ function vercelProjectLinkPath(projectDir: string) {
 
 /** 현재 플랫폼의 Vercel CLI 설정 폴더 경로를 반환합니다. */
 function vercelConfigDirectory(): string {
-  if (process.platform === 'darwin') {
-    return join(homedir(), 'Library', 'Application Support', 'com.vercel.cli')
-  }
-
-  if (process.platform === 'win32' && process.env.APPDATA) {
-    return join(process.env.APPDATA, 'com.vercel.cli')
-  }
-
-  return join(process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'com.vercel.cli')
+  return join(userDataDirectory(), 'com.vercel.cli')
 }
