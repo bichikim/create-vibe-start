@@ -78,12 +78,9 @@ download_gh() {
   download "https://github.com/cli/cli/releases/download/v${GH_VERSION}/$(basename "${archive}")" "${archive}"
   verify_archive "${archive}" "$(expected_checksum "${checksums}" "$(basename "${archive}")")"
   mkdir -p "${destination}"
-  unzip -q "${archive}" -d "${TEMP_DIR}/${archive_name}"
-  if [[ "${platform}" == windows_* ]]; then
-    cp "${TEMP_DIR}/${archive_name}/${archive_name}/bin/gh.exe" "${destination}/gh.exe"
-  else
-    cp "${TEMP_DIR}/${archive_name}/${archive_name}/bin/gh" "${destination}/gh"
-  fi
+  local extract_dir="${TEMP_DIR}/${archive_name}"
+  unzip -q "${archive}" -d "${extract_dir}"
+  node "scripts/copy-desktop-runtime-binary.js" "${extract_dir}" "${destination}" "${archive_name}" "${platform}"
 }
 
 rm -rf "${RUNTIME_DIR}/node" "${RUNTIME_DIR}/gh"
