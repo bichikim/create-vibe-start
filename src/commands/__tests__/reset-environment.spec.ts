@@ -18,8 +18,12 @@ const originalPlatform = process.platform
 const originalAppData = process.env.APPDATA
 const originalLocalAppData = process.env.LOCALAPPDATA
 const originalXdgDataHome = process.env.XDG_DATA_HOME
+const originalXdgCacheHome = process.env.XDG_CACHE_HOME
 
-function restoreEnvVar(name: 'APPDATA' | 'LOCALAPPDATA' | 'XDG_DATA_HOME', value: string | undefined) {
+function restoreEnvVar(
+  name: 'APPDATA' | 'LOCALAPPDATA' | 'XDG_DATA_HOME' | 'XDG_CACHE_HOME',
+  value: string | undefined,
+) {
   if (value === undefined) {
     delete process.env[name]
     return
@@ -56,6 +60,7 @@ describe('runResetEnvironment', () => {
     restoreEnvVar('APPDATA', originalAppData)
     restoreEnvVar('LOCALAPPDATA', originalLocalAppData)
     restoreEnvVar('XDG_DATA_HOME', originalXdgDataHome)
+    restoreEnvVar('XDG_CACHE_HOME', originalXdgCacheHome)
     spawnMock.mockReset()
     accessMock.mockReset().mockRejectedValue(new Error('missing'))
     rmMock.mockReset()
@@ -298,6 +303,7 @@ describe('runResetEnvironment', () => {
   it('uses the Vercel Linux data auth path and cache path outside macOS and Windows', async () => {
     Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
     delete process.env.XDG_DATA_HOME
+    delete process.env.XDG_CACHE_HOME
     const {runResetEnvironment} = await import('../reset-environment')
 
     await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
@@ -314,5 +320,15 @@ describe('runResetEnvironment', () => {
     await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
 
     expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('/xdg-data/com.vercel.cli'))
+  })
+
+  it('uses XDG_CACHE_HOME for the Vercel Linux cache path when set', async () => {
+    Object.defineProperty(process, 'platform', {value: 'linux', configurable: true})
+    process.env.XDG_CACHE_HOME = '/xdg-cache'
+    const {runResetEnvironment} = await import('../reset-environment')
+
+    await expect(runResetEnvironment({yes: true, dryRun: true})).resolves.toBe(true)
+
+    expect(logMock.info).toHaveBeenCalledWith(expect.stringContaining('/xdg-cache/com.vercel.cli'))
   })
 })
