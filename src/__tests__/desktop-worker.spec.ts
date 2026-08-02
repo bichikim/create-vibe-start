@@ -39,6 +39,18 @@ const baseRequest = {
   templateDir: '/templates',
 }
 
+function mockPrepareToolsAbsorption() {
+  // Mirrors runWorkflowStep's temporary Phase 1→2 throw absorption.
+  runCreateProjectWorkflowMock.mockImplementation(async (request, operations) => {
+    try {
+      await operations.prepareTools(request)
+      return {ok: true, value: undefined}
+    } catch (error) {
+      return {ok: false, message: error instanceof Error ? error.message : String(error)}
+    }
+  })
+}
+
 describe('desktop-worker', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -65,50 +77,83 @@ describe('desktop-worker', () => {
       if (request.startDevServer) {
         await operations.startDevServer(request)
       }
+      return {ok: true, value: undefined}
     })
   })
 
-  it('rejects invalid project requests before the workflow runs', async () => {
+  it('returns err for invalid project requests before the workflow runs', async () => {
     const {runDesktopWorker} = await import('../desktop-worker')
     const request = {...baseRequest, projectName: 'My-App', createGithubRepository: true}
 
-    await expect(runDesktopWorker(['node', 'desktop-worker', JSON.stringify(request)])).rejects.toThrow(
-      '대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.',
-    )
+    await expect(runDesktopWorker(['node', 'desktop-worker', JSON.stringify(request)])).resolves.toEqual({
+      ok: false,
+      message: '대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.',
+    })
     expect(runCreateProjectWorkflowMock).not.toHaveBeenCalled()
   })
 
   it('requires a desktop project request payload', async () => {
     const {runDesktopWorker} = await import('../desktop-worker')
-    await expect(runDesktopWorker(['node', 'desktop-worker'])).rejects.toThrow(
-      'Desktop project request is required.',
-    )
+    await expect(runDesktopWorker(['node', 'desktop-worker'])).resolves.toEqual({
+      ok: false,
+      message: 'Desktop project request is required.',
+    })
   })
 
-  it('parses a valid request and emits the workflow result', async () => {
+  it('returns err for invalid JSON before parsing the request', async () => {
+    const {runDesktopWorker} = await import('../desktop-worker')
+
+    await expect(runDesktopWorker(['node', 'desktop-worker', '{'])).resolves.toEqual({
+      ok: false,
+      message: 'Desktop project request is invalid JSON.',
+    })
+  })
+
+  it('parses a valid request and returns the workflow result', async () => {
     const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
     const {runDesktopWorker} = await import('../desktop-worker')
 
-    await runDesktopWorker(['node', 'desktop-worker', JSON.stringify(baseRequest)])
+    await expect(runDesktopWorker(['node', 'desktop-worker', JSON.stringify(baseRequest)])).resolves.toEqual({
+      ok: true,
+      value: {githubRepository: '', deploymentUrl: undefined},
+    })
 
     expect(runCreateProjectWorkflowMock).toHaveBeenCalled()
     expect(generateTemplateMock).toHaveBeenCalledWith('/tmp/app', {projectName: 'my-app'}, '/templates')
     expect(installDependenciesMock).toHaveBeenCalledWith('/tmp/app')
+    expect(writeSpy).not.toHaveBeenCalledWith('VIBE_RESULT:{"githubRepository":""}\n')
+    writeSpy.mockRestore()
+  })
+
+  it('renders successful worker results through the CLI wrapper', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    const {runDesktopWorkerCli} = await import('../desktop-worker')
+
+    await runDesktopWorkerCli(['node', 'desktop-worker', JSON.stringify(baseRequest)])
+
     expect(writeSpy).toHaveBeenCalledWith('VIBE_RESULT:{"githubRepository":""}\n')
     writeSpy.mockRestore()
   })
 
-  it('runs optional tool checks and workflow side effects', async () => {
+  it('returns optional tool checks and workflow side effects', async () => {
     const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
     const {runDesktopProjectWorkflow} = await import('../desktop-worker')
 
-    const result = await runDesktopProjectWorkflow({
-      ...baseRequest,
-      createGithubRepository: true,
-      deployVercel: true,
-      openCodex: true,
-      startDevServer: true,
-      resumeFromStep: 'generate-template',
+    await expect(
+      runDesktopProjectWorkflow({
+        ...baseRequest,
+        createGithubRepository: true,
+        deployVercel: true,
+        openCodex: true,
+        startDevServer: true,
+        resumeFromStep: 'generate-template',
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      value: {
+        githubRepository: 'owner/repo',
+        deploymentUrl: 'https://example.vercel.app',
+      },
     })
 
     expect(commandExistsMock).toHaveBeenCalledWith('git')
@@ -128,10 +173,6 @@ describe('desktop-worker', () => {
     })
     expect(runCommandQuietlyMock).toHaveBeenCalledWith('codex', ['app', '/tmp/app'])
     expect(runCommandInBackgroundMock).toHaveBeenCalledWith('pnpm', ['run', 'dev'], 'pnpm run dev', '/tmp/app')
-    expect(result).toEqual({
-      githubRepository: 'owner/repo',
-      deploymentUrl: 'https://example.vercel.app',
-    })
     expect(writeSpy).toHaveBeenCalledWith(
       expect.stringContaining('VIBE_EVENT:'),
     )
@@ -142,6 +183,7 @@ describe('desktop-worker', () => {
     createGitHubRepositoryMock.mockResolvedValue('')
     runCreateProjectWorkflowMock.mockImplementation(async (request, operations) => {
       await operations.deployVercel(request)
+      return {ok: true, value: undefined}
     })
     const {runDesktopProjectWorkflow} = await import('../desktop-worker')
 
@@ -156,19 +198,129 @@ describe('desktop-worker', () => {
       ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'],
       '/tmp/app',
     )
-    expect(result.githubRepository).toBe('owner/repo')
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        githubRepository: 'owner/repo',
+        deploymentUrl: 'https://example.vercel.app',
+      },
+    })
   })
 
-  it('throws when a required command is missing', async () => {
+  it('returns err when a required command is missing', async () => {
     commandExistsMock.mockResolvedValue(false)
+    mockPrepareToolsAbsorption()
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(runDesktopProjectWorkflow(baseRequest)).resolves.toEqual({
+      ok: false,
+      message: 'Git이 필요합니다. 도구 준비 화면에서 Git을 설치해주세요.',
+    })
+  })
+
+  it.each([
+    ['pnpm', baseRequest, 'pnpm이 필요합니다. 도구 준비 화면에서 Node와 pnpm을 설치해주세요.'],
+    [
+      'gh',
+      {...baseRequest, createGithubRepository: true},
+      'GitHub CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.',
+    ],
+    [
+      'vercel',
+      {...baseRequest, deployVercel: true},
+      'Vercel CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.',
+    ],
+    [
+      'codex',
+      {...baseRequest, openCodex: true},
+      'Codex CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.',
+    ],
+  ])('returns err when %s is missing', async (missingCommand, request, message) => {
+    commandExistsMock.mockImplementation(async (command) => command !== missingCommand)
+    mockPrepareToolsAbsorption()
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(runDesktopProjectWorkflow(request)).resolves.toEqual({ok: false, message})
+  })
+
+  it('returns string failures from command checks', async () => {
+    commandExistsMock.mockRejectedValue('command lookup failed')
+    mockPrepareToolsAbsorption()
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(runDesktopProjectWorkflow(baseRequest)).resolves.toEqual({
+      ok: false,
+      message: '알 수 없는 오류가 발생했습니다.',
+    })
+  })
+
+  it('returns Error failures from command checks', async () => {
+    commandExistsMock.mockRejectedValue(new Error('command lookup failed'))
+    mockPrepareToolsAbsorption()
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(runDesktopProjectWorkflow(baseRequest)).resolves.toEqual({
+      ok: false,
+      message: 'command lookup failed',
+    })
+  })
+
+  it('returns string failures from optional tool checks', async () => {
+    runCommandQuietlyMock.mockRejectedValue('authentication failed')
+    mockPrepareToolsAbsorption()
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(
+      runDesktopProjectWorkflow({...baseRequest, createGithubRepository: true}),
+    ).resolves.toEqual({ok: false, message: '알 수 없는 오류가 발생했습니다.'})
+  })
+
+  it('returns Error failures from optional tool checks', async () => {
+    runCommandQuietlyMock.mockRejectedValue(new Error('authentication failed'))
+    mockPrepareToolsAbsorption()
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(
+      runDesktopProjectWorkflow({...baseRequest, createGithubRepository: true}),
+    ).resolves.toEqual({ok: false, message: 'authentication failed'})
+  })
+
+  it('returns string failures while resolving a GitHub repository', async () => {
+    createGitHubRepositoryMock.mockResolvedValue('')
+    runCommandQuietlyMock.mockImplementation(async (_command, args) => {
+      if (args[0] === 'repo') {
+        throw 'repository lookup failed'
+      }
+      return {stdout: 'owner/repo', stderr: '', exitCode: 0}
+    })
     runCreateProjectWorkflowMock.mockImplementation(async (request, operations) => {
-      await operations.prepareTools(request)
+      await operations.createGithubRepository(request)
+      return {ok: true, value: undefined}
     })
     const {runDesktopProjectWorkflow} = await import('../desktop-worker')
 
-    await expect(runDesktopProjectWorkflow(baseRequest)).rejects.toThrow(
-      'Git이 필요합니다. 도구 준비 화면에서 Git을 설치해주세요.',
-    )
+    await expect(
+      runDesktopProjectWorkflow({...baseRequest, createGithubRepository: true}),
+    ).resolves.toEqual({ok: false, message: '알 수 없는 오류가 발생했습니다.'})
+  })
+
+  it('returns Error failures while resolving a GitHub repository', async () => {
+    createGitHubRepositoryMock.mockResolvedValue('')
+    runCommandQuietlyMock.mockImplementation(async (_command, args) => {
+      if (args[0] === 'repo') {
+        throw new Error('repository lookup failed')
+      }
+      return {stdout: 'owner/repo', stderr: '', exitCode: 0}
+    })
+    runCreateProjectWorkflowMock.mockImplementation(async (request, operations) => {
+      await operations.createGithubRepository(request)
+      return {ok: true, value: undefined}
+    })
+    const {runDesktopProjectWorkflow} = await import('../desktop-worker')
+
+    await expect(
+      runDesktopProjectWorkflow({...baseRequest, createGithubRepository: true}),
+    ).resolves.toEqual({ok: false, message: 'repository lookup failed'})
   })
 
   it('emits worker errors through the CLI wrapper', async () => {
@@ -185,14 +337,52 @@ describe('desktop-worker', () => {
     process.exitCode = undefined
   })
 
-  it('stringifies non-Error CLI failures', async () => {
+  it('emits worker errors for failed Results through the CLI wrapper', async () => {
     const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
-    runCreateProjectWorkflowMock.mockRejectedValue('boom')
+    runCreateProjectWorkflowMock.mockResolvedValue({ok: false, message: 'boom'})
     const {runDesktopWorkerCli} = await import('../desktop-worker')
 
     await runDesktopWorkerCli(['node', 'desktop-worker', JSON.stringify(baseRequest)])
 
     expect(writeSpy).toHaveBeenCalledWith('VIBE_ERROR:{"message":"boom"}\n')
+    expect(process.exitCode).toBe(1)
+    writeSpy.mockRestore()
+    process.exitCode = undefined
+  })
+
+  it('emits unexpected CLI safety-net failures', async () => {
+    const writeSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementationOnce(() => {
+        throw 'unexpected write failure'
+      })
+      .mockImplementation(() => true)
+    const {runDesktopWorkerCli} = await import('../desktop-worker')
+
+    await runDesktopWorkerCli(['node', 'desktop-worker', JSON.stringify(baseRequest)])
+
+    expect(writeSpy).toHaveBeenLastCalledWith(
+      'VIBE_ERROR:{"message":"알 수 없는 오류가 발생했습니다."}\n',
+    )
+    expect(process.exitCode).toBe(1)
+    writeSpy.mockRestore()
+    process.exitCode = undefined
+  })
+
+  it('emits unexpected Error failures through the CLI safety-net', async () => {
+    const writeSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementationOnce(() => {
+        throw new Error('unexpected write failure')
+      })
+      .mockImplementation(() => true)
+    const {runDesktopWorkerCli} = await import('../desktop-worker')
+
+    await runDesktopWorkerCli(['node', 'desktop-worker', JSON.stringify(baseRequest)])
+
+    expect(writeSpy).toHaveBeenLastCalledWith(
+      'VIBE_ERROR:{"message":"unexpected write failure"}\n',
+    )
     expect(process.exitCode).toBe(1)
     writeSpy.mockRestore()
     process.exitCode = undefined

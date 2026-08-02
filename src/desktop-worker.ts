@@ -3,7 +3,8 @@ import {
   type DesktopProjectRequest,
   desktopProjectRequestSchema,
 } from './core/schemas/desktop-project-request'
-import {parseOrThrow} from './core/schemas/parse'
+import {err, errorMessage, ok, type Result} from './core/result'
+import {parseResult} from './core/schemas/parse'
 import {createGitHubRepository} from './steps/create-github-repository'
 import {deployVercelProject} from './steps/deploy-vercel-project'
 import {generateTemplate} from './steps/generate-template'
@@ -21,32 +22,39 @@ function emit(prefix: string, value: unknown) {
   process.stdout.write(`${prefix}${JSON.stringify(value)}\n`)
 }
 
-async function assertCommand(command: string, message: string) {
+async function assertCommand(command: string, message: string): Promise<void> {
   if (!(await commandExists(command))) {
     throw new Error(message)
   }
 }
 
-async function prepareTools(request: DesktopProjectRequest) {
-  await assertCommand('git', 'Git이 필요합니다. 도구 준비 화면에서 Git을 설치해주세요.')
-  await assertCommand('pnpm', 'pnpm이 필요합니다. 도구 준비 화면에서 Node와 pnpm을 설치해주세요.')
+async function prepareTools(request: DesktopProjectRequest): Promise<Result<void>> {
+  try {
+    await assertCommand('git', 'Git이 필요합니다. 도구 준비 화면에서 Git을 설치해주세요.')
+    await assertCommand('pnpm', 'pnpm이 필요합니다. 도구 준비 화면에서 Node와 pnpm을 설치해주세요.')
 
-  if (request.createGithubRepository) {
-    await assertCommand('gh', 'GitHub CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.')
-    await runCommandQuietly('gh', ['auth', 'status'])
-  }
-  if (request.deployVercel) {
-    await assertCommand('vercel', 'Vercel CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.')
-    await runCommandQuietly('vercel', ['whoami'])
-  }
-  if (request.openCodex) {
-    await assertCommand('codex', 'Codex CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.')
-    await runCommandQuietly('codex', ['login', 'status'])
+    if (request.createGithubRepository) {
+      await assertCommand('gh', 'GitHub CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.')
+      await runCommandQuietly('gh', ['auth', 'status'])
+    }
+    if (request.deployVercel) {
+      await assertCommand('vercel', 'Vercel CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.')
+      await runCommandQuietly('vercel', ['whoami'])
+    }
+    if (request.openCodex) {
+      await assertCommand('codex', 'Codex CLI가 필요합니다. 도구 준비 화면에서 설치해주세요.')
+      await runCommandQuietly('codex', ['login', 'status'])
+    }
+    return ok(undefined)
+  } catch (error) {
+    return err(errorMessage(error))
   }
 }
 
 /** Executes the shared project workflow without terminal prompts for the Tauri host. */
-export async function runDesktopProjectWorkflow(request: DesktopProjectRequest) {
+export async function runDesktopProjectWorkflow(
+  request: DesktopProjectRequest,
+): Promise<Result<{githubRepository: string; deploymentUrl?: string}>> {
   let githubRepository = ''
   let deploymentUrl: string | undefined
   const progress: ProgressPort = {report: (event) => emit(EVENT_PREFIX, event)}
@@ -62,10 +70,16 @@ export async function runDesktopProjectWorkflow(request: DesktopProjectRequest) 
     return githubRepository
   }
 
-  await runCreateProjectWorkflow(
+  const workflowResult = await runCreateProjectWorkflow(
     request,
     {
-      prepareTools: () => prepareTools(request),
+      prepareTools: async () => {
+        const result = await prepareTools(request)
+        if (!result.ok) {
+          // Phase 1→2 temporary bridge into Promise<void> workflow operations.
+          throw new Error(result.message)
+        }
+      },
       generateTemplate: () =>
         generateTemplate(request.projectDir, {projectName: request.projectName}, request.templateDir),
       installDependencies: async () => {
@@ -92,33 +106,57 @@ export async function runDesktopProjectWorkflow(request: DesktopProjectRequest) 
     progress,
     {startAt: request.resumeFromStep},
   )
-
-  if (request.createGithubRepository) {
-    await resolveGithubRepository()
+  if (!workflowResult.ok) {
+    return workflowResult
   }
-  return {
+
+  try {
+    if (request.createGithubRepository) {
+      await resolveGithubRepository()
+    }
+  } catch (error) {
+    return err(errorMessage(error))
+  }
+
+  return ok({
     githubRepository,
     deploymentUrl,
-  }
+  })
 }
 
-export async function runDesktopWorker(argv = process.argv) {
+export async function runDesktopWorker(
+  argv = process.argv,
+): Promise<Result<{githubRepository: string; deploymentUrl?: string}>> {
   const [, , rawRequest] = argv
   if (!rawRequest) {
-    throw new Error('Desktop project request is required.')
+    return err('Desktop project request is required.')
   }
 
-  const request = parseOrThrow(desktopProjectRequestSchema, JSON.parse(rawRequest))
-  const result = await runDesktopProjectWorkflow(request)
-  emit(RESULT_PREFIX, result)
+  let request: unknown
+  try {
+    request = JSON.parse(rawRequest)
+  } catch {
+    return err('Desktop project request is invalid JSON.')
+  }
+  const parsed = parseResult(desktopProjectRequestSchema, request)
+  if (!parsed.ok) {
+    return parsed
+  }
+  return runDesktopProjectWorkflow(parsed.value)
 }
 
 /** CLI entry wrapper used when the desktop worker is launched as a process. */
 export async function runDesktopWorkerCli(argv = process.argv) {
   try {
-    await runDesktopWorker(argv)
+    const result = await runDesktopWorker(argv)
+    if (!result.ok) {
+      emit(ERROR_PREFIX, {message: result.message})
+      process.exitCode = 1
+      return
+    }
+    emit(RESULT_PREFIX, result.value)
   } catch (error) {
-    emit(ERROR_PREFIX, {message: error instanceof Error ? error.message : String(error)})
+    emit(ERROR_PREFIX, {message: errorMessage(error)})
     process.exitCode = 1
   }
 }
