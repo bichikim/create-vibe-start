@@ -24,55 +24,8 @@ export type WorkflowEvent = {
   detail?: string
 }
 
-export type ProcessRequest = {
-  tool: ToolId
-  operation: string
-  args: string[]
-  cwd?: string
-  env?: Record<string, string>
-  background?: boolean
-}
-
-export type ProcessResult = {
-  exitCode: number
-  stdout: string
-  stderr: string
-}
-
-export type ProcessOutput = {
-  executionId: string
-  stream: 'stdout' | 'stderr'
-  text: string
-}
-
-export interface ProcessPort {
-  run(request: ProcessRequest): Promise<ProcessResult>
-  cancel(executionId: string): Promise<void>
-  writeInput(executionId: string, input: string): Promise<void>
-  subscribeOutput(listener: (output: ProcessOutput) => void): () => void
-}
-
-export interface FileSystemPort {
-  copy(source: string, destination: string): Promise<void>
-  readText(path: string): Promise<string>
-  writeText(path: string, contents: string): Promise<void>
-  exists(path: string): Promise<boolean>
-}
-
-export interface InteractionPort {
-  confirm(message: string, initialValue?: boolean): Promise<boolean>
-  input(message: string, initialValue?: string): Promise<string | null>
-  selectDirectory(defaultPath?: string): Promise<string | null>
-}
-
 export interface ProgressPort {
   report(event: WorkflowEvent): void | Promise<void>
-}
-
-export interface ToolchainPort {
-  inspect(tool: ToolId): Promise<{installed: boolean; authenticated?: boolean; version?: string}>
-  install(tool: ToolId): Promise<void>
-  login(tool: ToolId): Promise<void>
 }
 
 export interface ProjectWorkflowOperations {
