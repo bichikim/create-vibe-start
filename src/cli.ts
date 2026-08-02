@@ -5,6 +5,8 @@ import {Command} from 'commander'
 import {confirm, isCancel, outro} from '@clack/prompts'
 import chalk from 'chalk'
 import {runResetEnvironment} from './commands/reset-environment'
+import {parseOrThrow} from './core/schemas/parse'
+import {repairVercelOptionsSchema} from './core/schemas/repair-vercel-options'
 import {type ProgressPort, runWorkflowStep} from './core/workflow'
 import {createGitHubRepository} from './steps/create-github-repository'
 import {deployVercelProject} from './steps/deploy-vercel-project'
@@ -30,12 +32,6 @@ type CliOptions = {
   skipVercel?: boolean
   skipCodex?: boolean
   projectDir?: string
-}
-
-type RepairOptions = {
-  dir: string
-  githubRepository?: string
-  projectName: string
 }
 
 type CreatedProject = {
@@ -151,10 +147,11 @@ export function createProgram() {
     .requiredOption('--dir <path>', 'Generated project directory')
     .requiredOption('--project-name <name>', 'Vercel project name')
     .option('--github-repository <owner/name>', 'GitHub repository to connect when no Vercel link exists')
-    .action(async (options: RepairOptions) => {
+    .action(async (options: unknown) => {
       try {
-        await deployVercelProject(options.dir, options.projectName, {
-          githubRepository: options.githubRepository,
+        const parsed = parseOrThrow(repairVercelOptionsSchema, options)
+        await deployVercelProject(parsed.dir, parsed.projectName, {
+          githubRepository: parsed.githubRepository,
         })
         outro(chalk.green('Vercel repair completed.'))
       } catch (error) {

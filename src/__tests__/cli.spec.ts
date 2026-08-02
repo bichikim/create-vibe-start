@@ -345,6 +345,26 @@ describe('CLI program', () => {
     expect(outroMock).toHaveBeenCalledWith('Vercel repair completed.')
   })
 
+  it('rejects invalid repair vercel project names before deploying', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    const {runCli} = await import('../cli')
+
+    await runCli([
+      'node',
+      'create-vibe-start',
+      'repair',
+      'vercel',
+      '--dir',
+      '/repo',
+      '--project-name',
+      'My-app',
+    ])
+
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
+    expect(outroMock).toHaveBeenCalledWith('대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.')
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
   it('prints unexpected repair vercel errors and exits with failure', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
     deployVercelProjectMock.mockRejectedValue(new Error('repair failed'))

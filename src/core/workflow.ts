@@ -1,4 +1,7 @@
-import {assertValidProjectName} from './project-name'
+import {type CreateProjectRequest, createProjectRequestSchema} from './schemas/create-project-request'
+import {parseOrThrow} from './schemas/parse'
+
+export type {CreateProjectRequest}
 
 export type ToolId = 'git' | 'gh' | 'node' | 'pnpm' | 'vercel' | 'codex'
 
@@ -18,15 +21,6 @@ export type WorkflowEvent = {
   status: WorkflowStatus
   message: string
   detail?: string
-}
-
-export type CreateProjectRequest = {
-  projectName: string
-  projectDir: string
-  createGithubRepository: boolean
-  deployVercel: boolean
-  openCodex: boolean
-  startDevServer: boolean
 }
 
 export type ProcessRequest = {
@@ -114,13 +108,7 @@ export class WorkflowCancelledError extends Error {
 
 /** Validates a project request before files or external services are changed. */
 export function validateCreateProjectRequest(request: CreateProjectRequest) {
-  assertValidProjectName(request.projectName)
-  if (!request.projectDir.trim()) {
-    throw new Error('프로젝트 폴더를 선택해주세요.')
-  }
-  if (request.deployVercel && !request.createGithubRepository) {
-    throw new Error('Vercel 배포에는 GitHub 저장소 생성이 필요합니다.')
-  }
+  parseOrThrow(createProjectRequestSchema, request)
 }
 
 /** Runs one observable workflow step and reports its terminal status. */

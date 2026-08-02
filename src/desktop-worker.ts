@@ -1,9 +1,9 @@
+import {type ProgressPort, runCreateProjectWorkflow} from './core/workflow'
 import {
-  type CreateProjectRequest,
-  type ProgressPort,
-  runCreateProjectWorkflow,
-  type WorkflowStepId,
-} from './core/workflow'
+  type DesktopProjectRequest,
+  desktopProjectRequestSchema,
+} from './core/schemas/desktop-project-request'
+import {parseOrThrow} from './core/schemas/parse'
 import {createGitHubRepository} from './steps/create-github-repository'
 import {deployVercelProject} from './steps/deploy-vercel-project'
 import {generateTemplate} from './steps/generate-template'
@@ -11,12 +11,7 @@ import {installDependencies} from './steps/install-dependencies'
 import {commandExists} from './utils/command-exists'
 import {runCommandInBackground, runCommandQuietly} from './utils/run-command'
 
-export type DesktopProjectRequest = CreateProjectRequest & {
-  gitAuthorName: string
-  gitAuthorEmail: string
-  templateDir: string
-  resumeFromStep?: WorkflowStepId
-}
+export type {DesktopProjectRequest}
 
 const EVENT_PREFIX = 'VIBE_EVENT:'
 const RESULT_PREFIX = 'VIBE_RESULT:'
@@ -113,16 +108,22 @@ export async function runDesktopWorker(argv = process.argv) {
     throw new Error('Desktop project request is required.')
   }
 
-  const request = JSON.parse(rawRequest) as DesktopProjectRequest
+  const request = parseOrThrow(desktopProjectRequestSchema, JSON.parse(rawRequest))
   const result = await runDesktopProjectWorkflow(request)
   emit(RESULT_PREFIX, result)
 }
 
-if (process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href) {
+/** CLI entry wrapper used when the desktop worker is launched as a process. */
+export async function runDesktopWorkerCli(argv = process.argv) {
   try {
-    await runDesktopWorker()
+    await runDesktopWorker(argv)
   } catch (error) {
     emit(ERROR_PREFIX, {message: error instanceof Error ? error.message : String(error)})
     process.exitCode = 1
   }
+}
+
+/* v8 ignore next 3 */
+if (process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href) {
+  await runDesktopWorkerCli()
 }

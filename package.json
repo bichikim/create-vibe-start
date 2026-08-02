@@ -42,7 +42,8 @@
     "handlebars": "^4.7.9",
     "ora": "^9.0.0",
     "reka-ui": "^2.10.1",
-    "which": "^5.0.0"
+    "which": "^5.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tauri-apps/api": "^2.11.1",
