@@ -1,5 +1,5 @@
 ---
-name: unit-testing
+name: unit-test
 description: Use when adding or updating unit tests for create-vibe-start CLI modules, especially Vitest tests that must isolate prompts, shell commands, platform detection, and package imports from real external resources.
 ---
 
