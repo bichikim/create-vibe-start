@@ -105,9 +105,7 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'apps/main-app/src/style.css'), 'utf8')).resolves.toContain(
       '@import "tailwindcss";',
     )
-    await expect(readFile(join(projectDir, 'apps/main-app/src/style.css'), 'utf8')).resolves.toContain(
-      '.safe-page',
-    )
+    await expect(readFile(join(projectDir, 'apps/main-app/src/style.css'), 'utf8')).resolves.toContain('.safe-page')
     await expect(readFile(join(projectDir, 'apps/main-app/index.html'), 'utf8')).resolves.toContain(
       'viewport-fit=cover',
     )
@@ -243,9 +241,9 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
       '"name": "vite-capacitor"',
     )
-    await expect(
-      readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8'),
-    ).resolves.toContain('lowercase reverse-domain notation')
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
+      'lowercase reverse-domain notation',
+    )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
       'vite-capacitor <build <ios|android>|app-id <com.example.app>>',
     )
@@ -340,11 +338,13 @@ describe('generateTemplate', () => {
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/values/strings.xml'), 'utf8'),
     ).resolves.toContain('<string name="custom_url_scheme">com.example.changed</string>')
 
-    await expect(execFileAsync(process.execPath, [
-      join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'),
-      'app-id',
-      'com.example.my_app',
-    ], {cwd: join(projectDir, 'apps/main-app')})).rejects.toMatchObject({
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'app-id', 'com.example.my_app'],
+        {cwd: join(projectDir, 'apps/main-app')},
+      ),
+    ).rejects.toMatchObject({
       stderr: expect.stringContaining('lowercase reverse-domain notation'),
     })
   })
@@ -448,5 +448,74 @@ describe('generateTemplate', () => {
     const {generateTemplate} = await import('../generate-template')
 
     await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow()
+  })
+
+  it('rejects malformed manifest JSON with a boundary error', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(join(templateDir, 'template-manifest.json'), '{invalid')
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow(
+      '템플릿 매니페스트가 올바른 JSON이 아닙니다.',
+    )
+  })
+
+  it('rejects malformed manifest file entries', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(join(templateDir, 'template-manifest.json'), JSON.stringify({files: [{from: 1}]}))
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow(
+      '템플릿 매니페스트의 files 형식이 올바르지 않습니다.',
+    )
+  })
+
+  it('rejects manifest output paths outside the project directory before writing files', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      JSON.stringify({files: [{from: 'source.txt', to: '../outside.txt'}]}),
+    )
+    await writeFile(join(templateDir, 'source.txt'), 'private')
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow(
+      '템플릿 출력 경로가 프로젝트 폴더를 벗어납니다: ../outside.txt',
+    )
+    await expect(readFile(join(testDir, 'outside.txt'), 'utf8')).rejects.toThrow()
+  })
+
+  it('rejects the project parent as a manifest output path', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      JSON.stringify({files: [{from: 'source.txt', to: '..'}]}),
+    )
+    await writeFile(join(templateDir, 'source.txt'), 'private')
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow(
+      '템플릿 출력 경로가 프로젝트 폴더를 벗어납니다: ..',
+    )
+  })
+
+  it('rejects an escaping source path when the manifest output path is omitted', async () => {
+    const templateDir = join(testDir, 'template')
+    const projectDir = join(testDir, 'project')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(join(templateDir, 'template-manifest.json'), JSON.stringify({files: [{from: '../outside.txt'}]}))
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(generateTemplate(projectDir, {}, templateDir)).rejects.toThrow(
+      '템플릿 출력 경로가 프로젝트 폴더를 벗어납니다: ../outside.txt',
+    )
   })
 })

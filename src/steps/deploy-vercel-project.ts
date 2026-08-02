@@ -6,21 +6,22 @@ import {execa} from 'execa'
 import {assertValidProjectName} from '../core/project-name'
 import {withNetworkRetry} from '../utils/network-retry'
 import {runCommand} from '../utils/run-command'
+import {isRecord} from '../utils/is-record'
 import {createVercelProject, findProductionDeployment, setBetterAuthSecret, type VercelProject} from './vercel-api'
 
-type ResolvedVercelProject = {
-  project: VercelProject
-  reusedLink: boolean
+interface ResolvedVercelProject {
+  readonly project: VercelProject
+  readonly source: 'created' | 'linked'
 }
 
-type RepairEnv = {
+interface RepairEnv {
   BETTER_AUTH_SECRET?: string
   TURSO_AUTH_TOKEN?: string
   TURSO_DATABASE_URL?: string
 }
 
-type DeployVercelProjectOptions = {
-  githubRepository?: string
+interface DeployVercelProjectOptions {
+  readonly githubRepository?: string
 }
 
 /**
@@ -35,13 +36,14 @@ export async function deployVercelProject(
   projectDir: string,
   projectName: string,
   options: DeployVercelProjectOptions = {},
-) {
+): Promise<string> {
   assertValidProjectName(projectName)
   await assertGeneratedProjectRoot(projectDir)
 
   log.step(chalk.bold('Vercel 배포'))
 
-  const {project, reusedLink} = await resolveVercelProject(projectDir, projectName, options.githubRepository)
+  const {project, source} = await resolveVercelProject(projectDir, projectName, options.githubRepository)
+  const reusedLink = source === 'linked'
   let productionEnv: RepairEnv = reusedLink ? await pullVercelProductionEnv(projectDir) : {}
 
   if (!productionEnv.TURSO_DATABASE_URL) {
@@ -89,8 +91,14 @@ function defaultDeploymentUrl(projectName: string) {
 async function assertGeneratedProjectRoot(projectDir: string) {
   try {
     await access(join(projectDir, 'apps/main-app/package.json'))
-  } catch {
-    throw new Error('생성된 프로젝트 루트가 아닙니다. --dir에는 create-vibe-start 프로젝트 루트를 지정해주세요.')
+  } catch (error) {
+    if (hasErrorCode(error, 'ENOENT') || hasErrorCode(error, 'ENOTDIR')) {
+      throw new Error('생성된 프로젝트 루트가 아닙니다. --dir에는 create-vibe-start 프로젝트 루트를 지정해주세요.', {
+        cause: error,
+      })
+    }
+
+    throw error
   }
 }
 
@@ -106,7 +114,7 @@ async function resolveVercelProject(
     }
 
     log.message(chalk.dim('기존 Vercel 프로젝트 링크를 재사용합니다.'))
-    return {project: linkedProject, reusedLink: true}
+    return {project: linkedProject, source: 'linked'}
   }
 
   if (!githubRepository) {
@@ -115,23 +123,45 @@ async function resolveVercelProject(
 
   const project = await createVercelProject(projectName, githubRepository)
   await writeVercelProjectLink(projectDir, project)
-  return {project, reusedLink: false}
+  return {project, source: 'created'}
+}
+
+interface VercelProjectLink {
+  readonly orgId: string
+  readonly projectId: string
+}
+
+function isVercelProjectLink(value: unknown): value is VercelProjectLink {
+  return (
+    isRecord(value) &&
+    typeof value.orgId === 'string' &&
+    value.orgId.length > 0 &&
+    typeof value.projectId === 'string' &&
+    value.projectId.length > 0
+  )
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code
 }
 
 async function readVercelProjectLink(projectDir: string): Promise<VercelProject | null> {
   try {
-    const projectJson = JSON.parse(await readFile(vercelProjectLinkPath(projectDir), 'utf8')) as {
-      orgId?: string
-      projectId?: string
+    const content = await readFile(vercelProjectLinkPath(projectDir), 'utf8')
+    let projectJson: unknown
+    try {
+      projectJson = JSON.parse(content)
+    } catch (error) {
+      throw new Error('Vercel 프로젝트 링크 파일이 올바른 JSON이 아닙니다.', {cause: error})
     }
 
-    if (!projectJson.orgId || !projectJson.projectId) {
+    if (!isVercelProjectLink(projectJson)) {
       throw new Error('Vercel 프로젝트 링크 파일이 올바르지 않습니다.')
     }
 
     return {accountId: projectJson.orgId, id: projectJson.projectId}
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (hasErrorCode(error, 'ENOENT')) {
       return null
     }
 
@@ -174,7 +204,7 @@ async function ensureMobileApiUrl(projectDir: string, projectName: string) {
   try {
     content = await readFile(envFile, 'utf8')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+    if (!hasErrorCode(error, 'ENOENT')) {
       throw error
     }
   }
@@ -213,30 +243,34 @@ async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {
   const values: RepairEnv = {}
 
   for (const line of content.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue
+    const entry = repairEnvEntry(line)
+    if (entry !== undefined) {
+      const [key, value] = entry
+      values[key] = value
     }
-
-    const separator = trimmed.indexOf('=')
-    if (separator === -1) {
-      continue
-    }
-
-    const key = trimmed.slice(0, separator).trim()
-    if (key !== 'TURSO_DATABASE_URL' && key !== 'TURSO_AUTH_TOKEN' && key !== 'BETTER_AUTH_SECRET') {
-      continue
-    }
-
-    let value = trimmed.slice(separator + 1).trim()
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1)
-    }
-
-    values[key] = value
   }
 
   return values
+}
+
+type RepairEnvEntry = readonly [keyof RepairEnv, string]
+
+function repairEnvEntry(line: string): RepairEnvEntry | undefined {
+  const trimmed = line.trim()
+  const separator = trimmed.indexOf('=')
+  if (!trimmed || trimmed.startsWith('#') || separator === -1) {
+    return undefined
+  }
+
+  const key = trimmed.slice(0, separator).trim()
+  if (key !== 'TURSO_DATABASE_URL' && key !== 'TURSO_AUTH_TOKEN' && key !== 'BETTER_AUTH_SECRET') {
+    return undefined
+  }
+
+  const rawValue = trimmed.slice(separator + 1).trim()
+  const quoted =
+    (rawValue.startsWith('"') && rawValue.endsWith('"')) || (rawValue.startsWith("'") && rawValue.endsWith("'"))
+  return [key, quoted ? rawValue.slice(1, -1) : rawValue]
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */

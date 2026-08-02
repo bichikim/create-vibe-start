@@ -42,7 +42,7 @@ vi.mock('@clack/prompts', () => ({
   },
 }))
 
-describe('deployVercelProject', () => {
+describe('deployVercelProject integration', () => {
   const originalPlatform = process.platform
   const originalAppData = process.env.APPDATA
   const originalXdgDataHome = process.env.XDG_DATA_HOME
@@ -200,14 +200,7 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).toHaveBeenNthCalledWith(
       2,
       'vercel',
-      [
-        'env',
-        'pull',
-        '/repo/my-app/apps/main-app/.env.migrate.local',
-        '--environment',
-        'production',
-        '--yes',
-      ],
+      ['env', 'pull', '/repo/my-app/apps/main-app/.env.migrate.local', '--environment', 'production', '--yes'],
       'vercel env pull',
       '/repo/my-app',
     )
@@ -243,12 +236,10 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(
-      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
-    ).resolves.toBe('https://my-app.vercel.app/')
-    expect(logWarnMock).toHaveBeenCalledWith(
-      '실제 배포 URL을 확인하지 못해 기본 URL을 사용합니다: Error: unauthorized',
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).resolves.toBe(
+      'https://my-app.vercel.app/',
     )
+    expect(logWarnMock).toHaveBeenCalledWith('실제 배포 URL을 확인하지 못해 기본 URL을 사용합니다: Error: unauthorized')
   })
 
   it('retries production deployment status checks on retryable HTTP responses', async () => {
@@ -273,9 +264,9 @@ describe('deployVercelProject', () => {
     })
     fetchMock.mockImplementation(async (url: string) => {
       if (url.startsWith('https://api.vercel.com/v13/deployments')) {
-        const deploymentCalls = fetchMock.mock.calls.filter(([calledUrl]) => (
-          String(calledUrl).startsWith('https://api.vercel.com/v13/deployments')
-        )).length
+        const deploymentCalls = fetchMock.mock.calls.filter(([calledUrl]) =>
+          String(calledUrl).startsWith('https://api.vercel.com/v13/deployments'),
+        ).length
 
         if (deploymentCalls === 1) {
           return {
@@ -288,9 +279,10 @@ describe('deployVercelProject', () => {
         return {
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
-            deployments: [{state: 'READY', target: 'production', url: 'my-app-team.vercel.app'}],
-          }),
+          json: () =>
+            Promise.resolve({
+              deployments: [{state: 'READY', target: 'production', url: 'my-app-team.vercel.app'}],
+            }),
         }
       }
 
@@ -304,9 +296,9 @@ describe('deployVercelProject', () => {
 
     await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBe('https://my-app-team.vercel.app/')
 
-    expect(fetchMock.mock.calls.filter(([url]) => (
-      String(url).startsWith('https://api.vercel.com/v13/deployments')
-    ))).toHaveLength(2)
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).startsWith('https://api.vercel.com/v13/deployments')),
+    ).toHaveLength(2)
     expect(logWarnMock).toHaveBeenCalledWith('네트워크 오류로 재시도합니다 (2/3): Vercel deployment 상태 확인')
   })
 
@@ -346,9 +338,9 @@ describe('deployVercelProject', () => {
 
     await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow('unauthorized')
 
-    expect(fetchMock.mock.calls.filter(([url]) => (
-      String(url).startsWith('https://api.vercel.com/v13/deployments')
-    ))).toHaveLength(1)
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).startsWith('https://api.vercel.com/v13/deployments')),
+    ).toHaveLength(1)
     expect(logWarnMock).not.toHaveBeenCalled()
   })
 
@@ -394,9 +386,9 @@ describe('deployVercelProject', () => {
 
     await expect(deployVercelProject('/repo/my-app', 'my-app')).resolves.toBe('https://my-app.vercel.app/')
 
-    expect(runCommandMock.mock.calls.filter(([command, args]) => (
-      command === 'vercel' && args[0] === 'env'
-    ))).toHaveLength(2)
+    expect(
+      runCommandMock.mock.calls.filter(([command, args]) => command === 'vercel' && args[0] === 'env'),
+    ).toHaveLength(2)
     expect(logWarnMock).toHaveBeenCalledWith('네트워크 오류로 재시도합니다 (2/3): vercel env pull')
   })
 
@@ -412,18 +404,18 @@ describe('deployVercelProject', () => {
 
     await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow('missing project link')
 
-    expect(runCommandMock.mock.calls.filter(([command, args]) => (
-      command === 'vercel' && args[0] === 'env'
-    ))).toHaveLength(1)
+    expect(
+      runCommandMock.mock.calls.filter(([command, args]) => command === 'vercel' && args[0] === 'env'),
+    ).toHaveLength(1)
     expect(logWarnMock).not.toHaveBeenCalled()
   })
 
   it('rejects an invalid project name before files or external services are used', async () => {
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(
-      deployVercelProject('/repo/My-app', 'My-app', {githubRepository: 'bichikim/My-app'}),
-    ).rejects.toThrow('대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.')
+    await expect(deployVercelProject('/repo/My-app', 'My-app', {githubRepository: 'bichikim/My-app'})).rejects.toThrow(
+      '대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.',
+    )
 
     expect(accessMock).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -433,19 +425,28 @@ describe('deployVercelProject', () => {
   })
 
   it('rejects a directory that is not a generated project root before external setup', async () => {
-    accessMock.mockRejectedValue(new Error('missing'))
+    accessMock.mockRejectedValue(Object.assign(new Error('missing'), {code: 'ENOENT'}))
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
     await expect(
       deployVercelProject('/repo/wrong-dir', 'my-app', {githubRepository: 'bichikim/my-app'}),
-    ).rejects.toThrow(
-      '생성된 프로젝트 루트가 아닙니다. --dir에는 create-vibe-start 프로젝트 루트를 지정해주세요.',
-    )
+    ).rejects.toThrow('생성된 프로젝트 루트가 아닙니다. --dir에는 create-vibe-start 프로젝트 루트를 지정해주세요.')
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(runCommandMock).not.toHaveBeenCalled()
     expect(execaMock).not.toHaveBeenCalled()
     expect(logStepMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves unexpected generated project root access errors', async () => {
+    const accessError = Object.assign(new Error('permission denied'), {code: 'EACCES'})
+    accessMock.mockRejectedValue(accessError)
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/restricted', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toBe(
+      accessError,
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('creates the mobile env file after production deploy when it is missing', async () => {
@@ -523,10 +524,7 @@ describe('deployVercelProject', () => {
 
     await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
 
-    expect(writeFileMock).not.toHaveBeenCalledWith(
-      '/repo/my-app/apps/main-app/.env.mobile',
-      expect.anything(),
-    )
+    expect(writeFileMock).not.toHaveBeenCalledWith('/repo/my-app/apps/main-app/.env.mobile', expect.anything())
     expect(logMessageMock).toHaveBeenCalledWith('기존 모바일 API URL을 유지합니다.')
   })
 
@@ -552,10 +550,7 @@ describe('deployVercelProject', () => {
       'permission denied',
     )
 
-    expect(writeFileMock).not.toHaveBeenCalledWith(
-      '/repo/my-app/apps/main-app/.env.mobile',
-      expect.anything(),
-    )
+    expect(writeFileMock).not.toHaveBeenCalledWith('/repo/my-app/apps/main-app/.env.mobile', expect.anything())
   })
 
   it('skips completed repair work for an existing successful Vercel project', async () => {
@@ -638,10 +633,7 @@ describe('deployVercelProject', () => {
 
     expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
     expect(mkdirMock).not.toHaveBeenCalled()
-    expect(writeFileMock).not.toHaveBeenCalledWith(
-      '/repo/my-app/.vercel/project.json',
-      expect.anything(),
-    )
+    expect(writeFileMock).not.toHaveBeenCalledWith('/repo/my-app/.vercel/project.json', expect.anything())
     expect(fetchMock).not.toHaveBeenCalledWith(
       'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
       expect.anything(),
@@ -649,14 +641,7 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).toHaveBeenNthCalledWith(
       1,
       'vercel',
-      [
-        'env',
-        'pull',
-        '/repo/my-app/apps/main-app/.env.migrate.local',
-        '--environment',
-        'production',
-        '--yes',
-      ],
+      ['env', 'pull', '/repo/my-app/apps/main-app/.env.migrate.local', '--environment', 'production', '--yes'],
       'vercel env pull',
       '/repo/my-app',
     )
@@ -787,14 +772,7 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).toHaveBeenNthCalledWith(
       1,
       'vercel',
-      [
-        'env',
-        'pull',
-        '/repo/my-app/apps/main-app/.env.migrate.local',
-        '--environment',
-        'production',
-        '--yes',
-      ],
+      ['env', 'pull', '/repo/my-app/apps/main-app/.env.migrate.local', '--environment', 'production', '--yes'],
       'vercel env pull',
       '/repo/my-app',
     )
@@ -821,14 +799,7 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).toHaveBeenNthCalledWith(
       3,
       'vercel',
-      [
-        'env',
-        'pull',
-        '/repo/my-app/apps/main-app/.env.migrate.local',
-        '--environment',
-        'production',
-        '--yes',
-      ],
+      ['env', 'pull', '/repo/my-app/apps/main-app/.env.migrate.local', '--environment', 'production', '--yes'],
       'vercel env pull',
       '/repo/my-app',
     )
@@ -854,10 +825,7 @@ describe('deployVercelProject', () => {
 
     expect(fetchMock).not.toHaveBeenCalledWith('https://api.vercel.com/v11/projects', expect.anything())
     expect(mkdirMock).not.toHaveBeenCalled()
-    expect(writeFileMock).not.toHaveBeenCalledWith(
-      '/repo/my-app/.vercel/project.json',
-      expect.anything(),
-    )
+    expect(writeFileMock).not.toHaveBeenCalledWith('/repo/my-app/.vercel/project.json', expect.anything())
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.vercel.com/v10/projects/prj_linked/env?teamId=team_linked&upsert=true',
       expect.objectContaining({
@@ -902,6 +870,21 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).not.toHaveBeenCalled()
   })
 
+  it('throws a boundary error when the existing Vercel project link is invalid JSON', async () => {
+    readFileMock.mockImplementation(async (path: string) => {
+      if (String(path).endsWith('.vercel/project.json')) {
+        return '{invalid'
+      }
+      return ''
+    })
+    const {deployVercelProject} = await import('../deploy-vercel-project')
+
+    await expect(deployVercelProject('/repo/my-app', 'my-app')).rejects.toThrow(
+      'Vercel 프로젝트 링크 파일이 올바른 JSON이 아닙니다.',
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('uses VERCEL_TOKEN before the Vercel CLI auth file', async () => {
     process.env.VERCEL_TOKEN = 'env-token'
     fetchMock.mockReset()
@@ -913,7 +896,7 @@ describe('deployVercelProject', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({}),
-    })
+      })
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -935,10 +918,7 @@ describe('deployVercelProject', () => {
 
     await deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})
 
-    expect(readFileMock).not.toHaveBeenCalledWith(
-      expect.stringContaining('auth.json'),
-      'utf8',
-    )
+    expect(readFileMock).not.toHaveBeenCalledWith(expect.stringContaining('auth.json'), 'utf8')
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.vercel.com/v11/projects',
       expect.objectContaining({
@@ -990,7 +970,7 @@ describe('deployVercelProject', () => {
       .mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({error: {message: 'Not authorized'}}),
-    })
+      })
     readFileMock.mockImplementation(async (path: string) => {
       if (String(path).endsWith('.vercel/project.json')) {
         throw missingVercelProjectLink()
@@ -1087,14 +1067,7 @@ describe('deployVercelProject', () => {
     expect(runCommandMock).toHaveBeenNthCalledWith(
       2,
       'vercel',
-      [
-        'env',
-        'pull',
-        '/repo/my-app/apps/main-app/.env.migrate.local',
-        '--environment',
-        'production',
-        '--yes',
-      ],
+      ['env', 'pull', '/repo/my-app/apps/main-app/.env.migrate.local', '--environment', 'production', '--yes'],
       'vercel env pull',
       '/repo/my-app',
     )
@@ -1193,9 +1166,9 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(
-      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
-    ).rejects.toThrow('stop')
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
+      'stop',
+    )
   })
 
   it('reads the Vercel token from the macOS CLI auth path on darwin', async () => {
@@ -1217,9 +1190,9 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(
-      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
-    ).rejects.toThrow('stop')
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
+      'stop',
+    )
   })
 
   it('reads the Vercel token from XDG_DATA_HOME on other platforms', async () => {
@@ -1242,9 +1215,9 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(
-      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
-    ).rejects.toThrow('stop')
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
+      'stop',
+    )
   })
 
   it('falls back to the home data directory when XDG_DATA_HOME is unset', async () => {
@@ -1267,8 +1240,8 @@ describe('deployVercelProject', () => {
     })
     const {deployVercelProject} = await import('../deploy-vercel-project')
 
-    await expect(
-      deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'}),
-    ).rejects.toThrow('stop')
+    await expect(deployVercelProject('/repo/my-app', 'my-app', {githubRepository: 'bichikim/my-app'})).rejects.toThrow(
+      'stop',
+    )
   })
 })

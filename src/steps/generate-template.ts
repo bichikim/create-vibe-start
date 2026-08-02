@@ -1,24 +1,33 @@
 import {cp, mkdir, readdir, readFile, stat, writeFile} from 'node:fs/promises'
-import {dirname, join} from 'node:path'
+import {dirname, isAbsolute, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
 import Handlebars from 'handlebars'
+import {isRecord} from '../utils/is-record'
 
-type TemplateFile = {
-  from: string
-  to?: string
-  template?: boolean
+interface TemplateFile {
+  readonly from: string
+  readonly to?: string
+  readonly template?: boolean
 }
 
-type TemplateManifest = {
-  files: TemplateFile[]
+interface TemplateManifest {
+  readonly files: ReadonlyArray<TemplateFile>
 }
 
-export type Answers = Record<string, unknown>
+interface TemplateAction {
+  readonly source: string
+  readonly destination: string
+  readonly template: boolean
+}
 
-const defaultManifestFileName = 'template-manifest.json'
-const defaultAnswers: Answers = {projectName: 'vibe-start-app'}
+export interface Answers {
+  [key: string]: unknown
+}
+
+const DEFAULT_MANIFEST_FILE_NAME = 'template-manifest.json'
+const DEFAULT_ANSWERS: Answers = {projectName: 'vibe-start-app'}
 
 function nativeAppIdFromProjectName(projectName: unknown) {
   const suffix = typeof projectName === 'string' ? projectName.toLowerCase().replaceAll(/[^a-z0-9]/gu, '') : ''
@@ -27,7 +36,7 @@ function nativeAppIdFromProjectName(projectName: unknown) {
 }
 
 function templateAnswers(answers: Answers) {
-  const mergedAnswers = {...defaultAnswers, ...answers}
+  const mergedAnswers = {...DEFAULT_ANSWERS, ...answers}
 
   if (typeof mergedAnswers.nativeAppId !== 'string' || !mergedAnswers.nativeAppId.trim()) {
     mergedAnswers.nativeAppId = nativeAppIdFromProjectName(mergedAnswers.projectName)
@@ -74,31 +83,74 @@ export async function generateTemplate(
   projectDir: string,
   answers: Answers = {},
   templateDir: string = resolveDefaultTemplateDir(),
-  manifestFileName: string = defaultManifestFileName,
-) {
+  manifestFileName: string = DEFAULT_MANIFEST_FILE_NAME,
+): Promise<void> {
   log.step(chalk.bold('프로젝트 템플릿 생성'))
 
   const manifestPath = join(templateDir, manifestFileName)
-  const {files} = JSON.parse(await readFile(manifestPath, 'utf8')) as TemplateManifest
+  const manifest = parseTemplateManifest(await readFile(manifestPath, 'utf8'))
+  const actions = templateActions(manifest, templateDir, projectDir)
   await Promise.all(
-    files
-      .filter((file) => !file.template)
-      .map((file) => {
-        const source = join(templateDir, file.from)
-        const destination = join(projectDir, file.to ?? file.from)
-
-        return cp(source, destination, {recursive: true, force: true})
-      }),
+    actions
+      .filter((action) => !action.template)
+      .map((action) => cp(action.source, action.destination, {recursive: true, force: true})),
   )
 
   const resolvedAnswers = templateAnswers(answers)
   await Promise.all(
-    files
-      .filter((file) => file.template)
-      .map((file) =>
-        renderTemplatePath(join(templateDir, file.from), join(projectDir, file.to ?? file.from), resolvedAnswers),
-      ),
+    actions
+      .filter((action) => action.template)
+      .map((action) => renderTemplatePath(action.source, action.destination, resolvedAnswers)),
   )
 
   log.message(chalk.green(`템플릿 파일 생성 완료: ${projectDir}`))
+}
+
+function isTemplateFile(value: unknown): value is TemplateFile {
+  return (
+    isRecord(value) &&
+    typeof value.from === 'string' &&
+    value.from.length > 0 &&
+    (value.to === undefined || (typeof value.to === 'string' && value.to.length > 0)) &&
+    (value.template === undefined || typeof value.template === 'boolean')
+  )
+}
+
+function parseTemplateManifest(content: string): TemplateManifest {
+  let value: unknown
+  try {
+    value = JSON.parse(content)
+  } catch (error) {
+    throw new Error('템플릿 매니페스트가 올바른 JSON이 아닙니다.', {cause: error})
+  }
+
+  if (!isRecord(value) || !Array.isArray(value.files) || !value.files.every(isTemplateFile)) {
+    throw new Error('템플릿 매니페스트의 files 형식이 올바르지 않습니다.')
+  }
+
+  return {files: value.files}
+}
+
+function templateActions(
+  manifest: TemplateManifest,
+  templateDir: string,
+  projectDir: string,
+): ReadonlyArray<TemplateAction> {
+  const projectRoot = resolve(projectDir)
+  return manifest.files.map((file) => {
+    const destination = resolve(projectRoot, file.to ?? file.from)
+    const relativeDestination = relative(projectRoot, destination)
+    // Windows can return an absolute path when project and destination are on different drives.
+    /* v8 ignore next */
+    const outsideDrive = isAbsolute(relativeDestination)
+    if (relativeDestination === '..' || relativeDestination.startsWith(`..${sep}`) || outsideDrive) {
+      throw new Error(`템플릿 출력 경로가 프로젝트 폴더를 벗어납니다: ${file.to ?? file.from}`)
+    }
+
+    return {
+      source: join(templateDir, file.from),
+      destination,
+      template: file.template === true,
+    }
+  })
 }
