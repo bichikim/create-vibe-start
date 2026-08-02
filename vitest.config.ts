@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     clearMocks: true,
     coverage: {
+      exclude: ['.agents/**'],
       thresholds: {
         branches: 100,
         functions: 100,
