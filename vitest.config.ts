@@ -8,6 +8,7 @@ export default defineConfig({
       'test/**/__tests__/**/*.spec.ts',
       'scripts/**/__tests__/**/*.spec.ts',
       'desktop/**/__tests__/**/*.spec.ts',
+      '.agents/**/__tests__/**/*.spec.ts',
     ],
     coverage: {
       exclude: ['test/**'],
