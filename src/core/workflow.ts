@@ -1,5 +1,6 @@
 import {type CreateProjectRequest, createProjectRequestSchema} from './schemas/create-project-request'
-import {parseOrThrow} from './schemas/parse'
+import {err, errorDetail, errorMessage, ok, type Result} from './result'
+import {parseResult} from './schemas/parse'
 
 export type {CreateProjectRequest}
 
@@ -107,31 +108,32 @@ export class WorkflowCancelledError extends Error {
 }
 
 /** Validates a project request before files or external services are changed. */
-export function validateCreateProjectRequest(request: CreateProjectRequest) {
-  parseOrThrow(createProjectRequestSchema, request)
+export function validateCreateProjectRequest(request: CreateProjectRequest): Result<CreateProjectRequest> {
+  return parseResult(createProjectRequestSchema, request)
 }
 
 /** Runs one observable workflow step and reports its terminal status. */
-export async function runWorkflowStep<Result>(
+export async function runWorkflowStep<ResultValue>(
   stepId: WorkflowStepId,
-  operation: () => Promise<Result>,
+  operation: () => Promise<ResultValue>,
   progress: ProgressPort,
-) {
+): Promise<Result<ResultValue>> {
   const message = stepMessages[stepId]
   await progress.report({stepId, status: 'running', message})
   try {
     const result = await operation()
     await progress.report({stepId, status: 'succeeded', message})
-    return result
+    return ok(result)
   } catch (error) {
     const cancelled = error instanceof WorkflowCancelledError
+    const detail = errorDetail(error)
     await progress.report({
       stepId,
       status: cancelled ? 'cancelled' : 'failed',
       message,
-      detail: error instanceof Error ? error.message : String(error),
+      detail,
     })
-    throw error
+    return cancelled ? err(detail, {cancelled: true}) : err(errorMessage(error))
   }
 }
 
@@ -141,35 +143,43 @@ export async function runCreateProjectWorkflow(
   operations: ProjectWorkflowOperations,
   progress: ProgressPort,
   options: RunWorkflowOptions = {},
-) {
-  validateCreateProjectRequest(request)
+): Promise<Result<void>> {
+  const parsed = validateCreateProjectRequest(request)
+  if (!parsed.ok) {
+    return parsed
+  }
+  const validRequest = parsed.value
 
   const steps: Array<[WorkflowStepId, () => Promise<void>]> = [
-    ['prepare-tools', () => operations.prepareTools(request)],
-    ['generate-template', () => operations.generateTemplate(request)],
-    ['install-dependencies', () => operations.installDependencies(request)],
+    ['prepare-tools', () => operations.prepareTools(validRequest)],
+    ['generate-template', () => operations.generateTemplate(validRequest)],
+    ['install-dependencies', () => operations.installDependencies(validRequest)],
   ]
-  if (request.createGithubRepository) {
-    steps.push(['create-github-repository', () => operations.createGithubRepository(request)])
+  if (validRequest.createGithubRepository) {
+    steps.push(['create-github-repository', () => operations.createGithubRepository(validRequest)])
   }
-  if (request.deployVercel) {
-    steps.push(['deploy-vercel', () => operations.deployVercel(request)])
+  if (validRequest.deployVercel) {
+    steps.push(['deploy-vercel', () => operations.deployVercel(validRequest)])
   }
-  if (request.openCodex) {
-    steps.push(['launch-codex', () => operations.launchCodex(request)])
+  if (validRequest.openCodex) {
+    steps.push(['launch-codex', () => operations.launchCodex(validRequest)])
   }
-  if (request.startDevServer) {
-    steps.push(['start-dev-server', () => operations.startDevServer(request)])
+  if (validRequest.startDevServer) {
+    steps.push(['start-dev-server', () => operations.startDevServer(validRequest)])
   }
 
   const startIndex = options.startAt ? steps.findIndex(([stepId]) => stepId === options.startAt) : 0
   if (startIndex === -1) {
-    throw new Error(`선택하지 않은 단계는 재시도할 수 없습니다: ${options.startAt}`)
+    return err(`선택하지 않은 단계는 재시도할 수 없습니다: ${options.startAt}`)
   }
 
   for (const [stepId, operation] of steps.slice(startIndex)) {
-    // Workflow steps intentionally mutate the result of the previous step.
     // eslint-disable-next-line no-await-in-loop
-    await runWorkflowStep(stepId, operation, progress)
+    const stepResult = await runWorkflowStep(stepId, operation, progress)
+    if (!stepResult.ok) {
+      return stepResult
+    }
   }
+
+  return ok(undefined)
 }

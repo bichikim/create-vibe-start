@@ -1,4 +1,5 @@
 import {type z, ZodError} from 'zod'
+import {err, ok, type Result} from '../result'
 
 /** Returns the first Zod issue message for CLI/UI error surfaces. */
 export function firstIssueMessage(error: ZodError): string {
@@ -12,4 +13,12 @@ export function parseOrThrow<T>(schema: z.ZodType<T>, value: unknown): T {
     throw new Error(firstIssueMessage(result.error))
   }
   return result.data
+}
+
+export function parseResult<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
+  const result = schema.safeParse(value)
+  if (!result.success) {
+    return err(firstIssueMessage(result.error))
+  }
+  return ok(result.data)
 }

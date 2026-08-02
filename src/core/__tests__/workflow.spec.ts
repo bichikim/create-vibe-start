@@ -43,20 +43,32 @@ function makeProgress() {
 
 describe('validateCreateProjectRequest', () => {
   it('rejects missing project names and directories', () => {
-    expect(() => validateCreateProjectRequest({...request, projectName: ' '})).toThrow('프로젝트 이름을 입력해주세요.')
-    expect(() => validateCreateProjectRequest({...request, projectDir: ' '})).toThrow('프로젝트 폴더를 선택해주세요.')
+    expect(validateCreateProjectRequest({...request, projectName: ' '})).toEqual({
+      ok: false,
+      message: '프로젝트 이름을 입력해주세요.',
+    })
+    expect(validateCreateProjectRequest({...request, projectDir: ' '})).toEqual({
+      ok: false,
+      message: '프로젝트 폴더를 선택해주세요.',
+    })
   })
 
   it('uses the shared project-name rules', () => {
-    expect(() => validateCreateProjectRequest({...request, projectName: 'My-app'})).toThrow(
-      '대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.',
-    )
+    expect(validateCreateProjectRequest({...request, projectName: 'My-app'})).toEqual({
+      ok: false,
+      message: '대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.',
+    })
   })
 
   it('requires GitHub when Vercel deployment is selected', () => {
-    expect(() => validateCreateProjectRequest({...request, createGithubRepository: false, deployVercel: true})).toThrow(
-      'Vercel 배포에는 GitHub 저장소 생성이 필요합니다.',
-    )
+    expect(validateCreateProjectRequest({...request, createGithubRepository: false, deployVercel: true})).toEqual({
+      ok: false,
+      message: 'Vercel 배포에는 GitHub 저장소 생성이 필요합니다.',
+    })
+  })
+
+  it('returns parsed request on success', () => {
+    expect(validateCreateProjectRequest(request)).toEqual({ok: true, value: request})
   })
 })
 
@@ -67,7 +79,10 @@ describe('runCreateProjectWorkflow', () => {
 
     await expect(
       runCreateProjectWorkflow({...request, projectName: 'bad---name'}, operations, progress),
-    ).rejects.toThrow('프로젝트 이름에는 ---를 사용할 수 없습니다.')
+    ).resolves.toEqual({
+      ok: false,
+      message: '프로젝트 이름에는 ---를 사용할 수 없습니다.',
+    })
 
     expect(Object.values(operations).every((operation) => operation.mock.calls.length === 0)).toBe(true)
     expect(events).toEqual([])
@@ -77,7 +92,10 @@ describe('runCreateProjectWorkflow', () => {
     const operations = makeOperations()
     const {events, progress} = makeProgress()
 
-    await runCreateProjectWorkflow(request, operations, progress)
+    await expect(runCreateProjectWorkflow(request, operations, progress)).resolves.toEqual({
+      ok: true,
+      value: undefined,
+    })
 
     expect(Object.values(operations).every((operation) => operation.mock.calls.length === 1)).toBe(true)
     expect(events.map(({stepId, status}) => `${stepId}:${status}`)).toEqual([
@@ -102,17 +120,19 @@ describe('runCreateProjectWorkflow', () => {
     const operations = makeOperations()
     const {progress} = makeProgress()
 
-    await runCreateProjectWorkflow(
-      {
-        ...request,
-        createGithubRepository: false,
-        deployVercel: false,
-        openCodex: false,
-        startDevServer: false,
-      },
-      operations,
-      progress,
-    )
+    await expect(
+      runCreateProjectWorkflow(
+        {
+          ...request,
+          createGithubRepository: false,
+          deployVercel: false,
+          openCodex: false,
+          startDevServer: false,
+        },
+        operations,
+        progress,
+      ),
+    ).resolves.toMatchObject({ok: true})
 
     expect(operations.prepareTools).toHaveBeenCalledOnce()
     expect(operations.generateTemplate).toHaveBeenCalledOnce()
@@ -127,7 +147,9 @@ describe('runCreateProjectWorkflow', () => {
     const operations = makeOperations()
     const {events, progress} = makeProgress()
 
-    await runCreateProjectWorkflow(request, operations, progress, {startAt: 'deploy-vercel'})
+    await expect(
+      runCreateProjectWorkflow(request, operations, progress, {startAt: 'deploy-vercel'}),
+    ).resolves.toMatchObject({ok: true})
 
     expect(operations.prepareTools).not.toHaveBeenCalled()
     expect(operations.createGithubRepository).not.toHaveBeenCalled()
@@ -142,26 +164,63 @@ describe('runCreateProjectWorkflow', () => {
 
     await expect(
       runCreateProjectWorkflow({...request, openCodex: false}, operations, progress, {startAt: 'launch-codex'}),
-    ).rejects.toThrow('선택하지 않은 단계는 재시도할 수 없습니다')
+    ).resolves.toEqual({
+      ok: false,
+      message: '선택하지 않은 단계는 재시도할 수 없습니다: launch-codex',
+    })
+  })
+
+  it('returns failed result when a step throws', async () => {
+    const operations = makeOperations()
+    operations.generateTemplate.mockRejectedValue(new Error('broken'))
+    const {events, progress} = makeProgress()
+
+    await expect(runCreateProjectWorkflow(request, operations, progress)).resolves.toEqual({
+      ok: false,
+      message: 'broken',
+    })
+    expect(events.at(-1)).toMatchObject({stepId: 'generate-template', status: 'failed', detail: 'broken'})
   })
 })
 
 describe('runWorkflowStep', () => {
-  it('reports failures and rethrows them', async () => {
+  it('reports failures as Result instead of rethrowing', async () => {
     const {events, progress} = makeProgress()
 
     await expect(
       runWorkflowStep('generate-template', () => Promise.reject(new Error('broken')), progress),
-    ).rejects.toThrow('broken')
+    ).resolves.toEqual({ok: false, message: 'broken'})
     expect(events.at(-1)).toMatchObject({status: 'failed', detail: 'broken'})
   })
 
-  it('reports user cancellation separately', async () => {
+  it('uses a fallback Result message for non-Error throws', async () => {
+    const {events, progress} = makeProgress()
+
+    await expect(
+      runWorkflowStep('generate-template', () => Promise.reject('boom'), progress),
+    ).resolves.toEqual({ok: false, message: '알 수 없는 오류가 발생했습니다.'})
+    expect(events.at(-1)).toMatchObject({status: 'failed', detail: 'boom'})
+  })
+
+  it('reports user cancellation as cancelled Result', async () => {
     const {events, progress} = makeProgress()
 
     await expect(
       runWorkflowStep('generate-template', () => Promise.reject(new WorkflowCancelledError()), progress),
-    ).rejects.toBeInstanceOf(WorkflowCancelledError)
+    ).resolves.toEqual({
+      ok: false,
+      message: '작업이 취소되었습니다.',
+      cancelled: true,
+    })
     expect(events.at(-1)).toMatchObject({status: 'cancelled'})
+  })
+
+  it('returns ok value on success', async () => {
+    const {progress} = makeProgress()
+
+    await expect(runWorkflowStep('generate-template', async () => 'done', progress)).resolves.toEqual({
+      ok: true,
+      value: 'done',
+    })
   })
 })

@@ -408,7 +408,77 @@ describe('CLI program', () => {
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 
-  it('prints a fallback message for non-Error onboarding failures', async () => {
+  it('prints unexpected onboarding errors from outside workflow steps', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    showWelcomeMock.mockRejectedValue(new Error('welcome failed'))
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('welcome failed')
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('prints a fallback for non-Error unexpected onboarding failures', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    showWelcomeMock.mockRejectedValue('boom')
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('알 수 없는 오류가 발생했습니다.')
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('stops when dependency installation fails', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    installDependenciesMock.mockRejectedValue(new Error('dependencies failed'))
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('dependencies failed')
+    expect(createGitHubRepositoryMock).not.toHaveBeenCalled()
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('stops when GitHub repository creation fails', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    createGitHubRepositoryMock.mockRejectedValue(new Error('GitHub failed'))
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('GitHub failed')
+    expect(deployVercelProjectMock).not.toHaveBeenCalled()
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('stops when Vercel deployment fails', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    deployVercelProjectMock.mockRejectedValue(new Error('Vercel failed'))
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('Vercel failed')
+    expect(launchCodexAppMock).not.toHaveBeenCalled()
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('stops when Codex app launch fails', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    launchCodexAppMock.mockRejectedValue(new Error('Codex failed'))
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start'])
+
+    expect(outroMock).toHaveBeenCalledWith('Codex failed')
+    expect(showCompleteMock).not.toHaveBeenCalled()
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('prints a fallback for non-Error workflow failures and exits with failure', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
     generateTemplateMock.mockRejectedValue('boom')
     const {runCli} = await import('../cli')

@@ -1,8 +1,10 @@
+import {mkdir, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {commandExists} from '../utils/command-exists'
 import {runCommand} from '../utils/run-command'
 
 const PNPM_VERSION = '11.1.2'
+const PLACEHOLDER_INDEX_HTML = '<!doctype html><title>vibe</title>\n'
 
 /**
  * 생성된 프로젝트 폴더에서 의존성을 설치합니다.
@@ -28,12 +30,19 @@ export async function installDependencies(projectDir: string): Promise<boolean> 
   }
 
   await runCommand('pnpm', ['i'], 'pnpm i', projectDir)
+
+  const appDir = join(projectDir, 'apps/main-app')
+  // Capacitor writes capacitor.plugins.json here and copies webDir when missing.
+  await mkdir(join(appDir, 'android/app/src/main/assets'), {recursive: true})
+  await mkdir(join(appDir, 'dist'), {recursive: true})
+  await writeFile(join(appDir, 'dist/index.html'), PLACEHOLDER_INDEX_HTML)
+
   // Regenerate Capacitor's Android Gradle links from the installed package paths.
   await runCommand(
     'pnpm',
     ['exec', 'cap', 'update', 'android'],
     'pnpm exec cap update android',
-    join(projectDir, 'apps/main-app'),
+    appDir,
   )
   return true
 }

@@ -2,6 +2,8 @@ import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 const commandExistsMock = vi.fn()
 const runCommandMock = vi.fn()
+const mkdirMock = vi.hoisted(() => vi.fn())
+const writeFileMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../utils/command-exists.js', () => ({
   commandExists: commandExistsMock,
@@ -11,10 +13,17 @@ vi.mock('../../utils/run-command.js', () => ({
   runCommand: runCommandMock,
 }))
 
+vi.mock('node:fs/promises', () => ({
+  mkdir: mkdirMock,
+  writeFile: writeFileMock,
+}))
+
 describe('installDependencies', () => {
   beforeEach(() => {
     commandExistsMock.mockReset()
     runCommandMock.mockReset().mockResolvedValue(undefined)
+    mkdirMock.mockReset().mockResolvedValue(undefined)
+    writeFileMock.mockReset().mockResolvedValue(undefined)
   })
 
   it('uses pnpm when available', async () => {
@@ -25,6 +34,12 @@ describe('installDependencies', () => {
 
     expect(commandExistsMock).toHaveBeenCalledWith('pnpm')
     expect(runCommandMock).toHaveBeenNthCalledWith(1, 'pnpm', ['i'], 'pnpm i', '/repo')
+    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/android/app/src/main/assets', {recursive: true})
+    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/dist', {recursive: true})
+    expect(writeFileMock).toHaveBeenCalledWith(
+      '/repo/apps/main-app/dist/index.html',
+      '<!doctype html><title>vibe</title>\n',
+    )
     expect(runCommandMock).toHaveBeenNthCalledWith(
       2,
       'pnpm',
@@ -54,6 +69,12 @@ describe('installDependencies', () => {
       'corepack prepare pnpm@11.1.2 --activate',
     )
     expect(runCommandMock).toHaveBeenNthCalledWith(3, 'pnpm', ['i'], 'pnpm i', '/repo')
+    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/android/app/src/main/assets', {recursive: true})
+    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/dist', {recursive: true})
+    expect(writeFileMock).toHaveBeenCalledWith(
+      '/repo/apps/main-app/dist/index.html',
+      '<!doctype html><title>vibe</title>\n',
+    )
     expect(runCommandMock).toHaveBeenNthCalledWith(
       4,
       'pnpm',

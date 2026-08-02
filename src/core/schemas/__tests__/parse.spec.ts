@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {z} from 'zod'
-import {firstIssueMessage, parseOrThrow} from '../parse'
+import {firstIssueMessage, parseOrThrow, parseResult} from '../parse'
 
 describe('parseOrThrow', () => {
   it('returns parsed data', () => {
@@ -31,5 +31,18 @@ describe('firstIssueMessage', () => {
     const error = new z.ZodError([])
     Object.defineProperty(error, 'message', {value: 'fallback'})
     expect(firstIssueMessage(error)).toBe('fallback')
+  })
+})
+
+describe('parseResult', () => {
+  it('returns ok with parsed data', () => {
+    expect(parseResult(z.string().min(1), 'ok')).toEqual({ok: true, value: 'ok'})
+  })
+
+  it('returns err with the first issue message', () => {
+    expect(parseResult(z.string().min(1, {error: 'too short'}), '')).toEqual({
+      ok: false,
+      message: 'too short',
+    })
   })
 })

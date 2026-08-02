@@ -41,6 +41,47 @@ type CreatedProject = {
 
 const cliWorkflowProgress: ProgressPort = {report: () => undefined}
 
+function exitWithOutro(message: string, exitCode: number) {
+  outro(message)
+  process.exit(exitCode)
+}
+
+async function selectCreatedProject(options: CliOptions): Promise<CreatedProject | null> {
+  const projectName = await selectProjectName()
+  if (projectName === null) {
+    return null
+  }
+
+  const projectDir = await selectProjectDir({defaultDir: options.projectDir ?? `./${projectName}`})
+  if (projectDir === null) {
+    return null
+  }
+
+  return {projectDir, projectName}
+}
+
+async function shouldProceed(): Promise<boolean> {
+  const proceed = await showWelcome()
+  return !isCancel(proceed) && Boolean(proceed)
+}
+
+async function runSelectedSetupSteps(options: CliOptions): Promise<SetupResult[]> {
+  const steps: SetupStep[] = [
+    ...(options.skipGithub ? [] : [setupGitHub]),
+    ...(options.skipVercel ? [] : [setupVercel]),
+    ...(options.skipCodex ? [] : [setupCodex]),
+  ]
+  return runSetupSteps(steps)
+}
+
+async function shouldCreateProject(): Promise<boolean> {
+  const response = await confirm({
+    message: '새 프로젝트를 만들까요?',
+    initialValue: true,
+  })
+  return !isCancel(response) && Boolean(response)
+}
+
 /**
  * create-vibe-start 명령과 하위 명령을 구성합니다.
  *
@@ -57,84 +98,82 @@ export function createProgram() {
     .option('--project-dir <path>', 'Default project working directory')
     .action(async (options: CliOptions) => {
       try {
-        const proceed = await showWelcome()
-
-        if (isCancel(proceed) || !proceed) {
-          outro(chalk.yellow('준비가 필요할 때 다시 실행해주세요.'))
-          process.exit(0)
+        if (!(await shouldProceed())) {
+          exitWithOutro(chalk.yellow('준비가 필요할 때 다시 실행해주세요.'), 0)
           return
         }
 
-        const steps: SetupStep[] = [
-          ...(options.skipGithub ? [] : [setupGitHub]),
-          ...(options.skipVercel ? [] : [setupVercel]),
-          ...(options.skipCodex ? [] : [setupCodex]),
-        ]
-        const results = await runSetupSteps(steps)
-        const shouldCreateProject = await confirm({
-          message: '새 프로젝트를 만들까요?',
-          initialValue: true,
-        })
-
-        if (isCancel(shouldCreateProject) || !shouldCreateProject) {
+        const results = await runSelectedSetupSteps(options)
+        if (!(await shouldCreateProject())) {
           showComplete(results)
           return
         }
 
-        const projectName = await selectProjectName()
-
-        if (projectName === null) {
-          outro(chalk.yellow('프로젝트 준비를 취소했습니다.'))
-          process.exit(0)
+        const createdProject = await selectCreatedProject(options)
+        if (createdProject === null) {
+          exitWithOutro(chalk.yellow('프로젝트 준비를 취소했습니다.'), 0)
           return
         }
 
-        const projectDir = await selectProjectDir({defaultDir: options.projectDir ?? `./${projectName}`})
-
-        if (projectDir === null) {
-          outro(chalk.yellow('프로젝트 준비를 취소했습니다.'))
-          process.exit(0)
-          return
-        }
-
-        await runWorkflowStep(
+        const templateResult = await runWorkflowStep(
           'generate-template',
-          () => generateTemplate(projectDir, {projectName}),
+          () => generateTemplate(createdProject.projectDir, {projectName: createdProject.projectName}),
           cliWorkflowProgress,
         )
-        const dependenciesInstalled = await runWorkflowStep(
-          'install-dependencies',
-          () => installDependencies(projectDir),
-          cliWorkflowProgress,
-        )
+        if (!templateResult.ok) {
+          exitWithOutro(chalk.red(templateResult.message), 1)
+          return
+        }
 
-        const createdProject = {projectDir, projectName}
-        const githubRepositoryCreated = await runWorkflowStep(
+        const dependenciesResult = await runWorkflowStep(
+          'install-dependencies',
+          () => installDependencies(createdProject.projectDir),
+          cliWorkflowProgress,
+        )
+        if (!dependenciesResult.ok) {
+          exitWithOutro(chalk.red(dependenciesResult.message), 1)
+          return
+        }
+        const dependenciesInstalled = dependenciesResult.value
+
+        const githubRepositoryResult = await runWorkflowStep(
           'create-github-repository',
           () => maybeCreateGitHubRepository(options, results, createdProject),
           cliWorkflowProgress,
         )
-        await runWorkflowStep(
+        if (!githubRepositoryResult.ok) {
+          exitWithOutro(chalk.red(githubRepositoryResult.message), 1)
+          return
+        }
+
+        const vercelDeploymentResult = await runWorkflowStep(
           'deploy-vercel',
-          () => maybeDeployVercelProject(options, results, createdProject, githubRepositoryCreated),
+          () => maybeDeployVercelProject(options, results, createdProject, githubRepositoryResult.value),
           cliWorkflowProgress,
         )
+        if (!vercelDeploymentResult.ok) {
+          exitWithOutro(chalk.red(vercelDeploymentResult.message), 1)
+          return
+        }
 
         let finalResults = results
         if (!options.skipCodex) {
           const codexResult = results.find((result) => result.name === 'Codex')
-          const launched = await runWorkflowStep(
+          const launchCodexResult = await runWorkflowStep(
             'launch-codex',
-            () => launchCodexApp(projectDir, codexResult, dependenciesInstalled),
+            () => launchCodexApp(createdProject.projectDir, codexResult, dependenciesInstalled),
             cliWorkflowProgress,
           )
-          finalResults = withCodexAppReadyMessage(results, launched)
+          if (!launchCodexResult.ok) {
+            exitWithOutro(chalk.red(launchCodexResult.message), 1)
+            return
+          }
+          finalResults = withCodexAppReadyMessage(results, launchCodexResult.value)
         }
 
         showComplete(finalResults)
       } catch (error) {
-        outro(chalk.red(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'))
-        process.exit(1)
+        exitWithOutro(chalk.red(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'), 1)
         return
       }
     })
