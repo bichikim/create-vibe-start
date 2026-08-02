@@ -7,7 +7,7 @@ export default defineConfig({
     builtin: true,
     node: true,
   },
-  ignorePatterns: ['dist/*', 'coverage/*', '.agents/**'],
+  ignorePatterns: ['dist/*', 'coverage/*', '.agents/**', 'test/**'],
   jsPlugins: [
     'oxlint-plugin-eslint',
     {
