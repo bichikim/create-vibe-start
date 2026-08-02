@@ -245,11 +245,14 @@ function uninstallGlobalPackageSteps(packageManagers: PackageManager[], name: st
  * @returns 각 단계의 성공 여부 목록입니다.
  */
 async function runSteps(steps: Step[], dryRun: boolean): Promise<boolean[]> {
-  return steps.reduce<Promise<boolean[]>>(async (previous, step) => {
-    const results = await previous
-    const ok = step.kind === 'command' ? await runCommand(step, dryRun) : await removeTarget(step, dryRun)
-    return [...results, ok]
-  }, Promise.resolve([]))
+  const results: boolean[] = []
+  for (const step of steps) {
+    // Reset steps are intentionally sequential so command output stays readable.
+    // eslint-disable-next-line no-await-in-loop
+    const succeeded = step.kind === 'command' ? await runCommand(step, dryRun) : await removeTarget(step, dryRun)
+    results.push(succeeded)
+  }
+  return results
 }
 
 /**
