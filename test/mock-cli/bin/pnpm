@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+import {runMockCli} from '../lib/run-bin.mjs'
+
+await runMockCli('pnpm', process.argv.slice(2))
