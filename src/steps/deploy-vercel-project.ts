@@ -1,18 +1,12 @@
-import {randomBytes} from 'node:crypto'
 import {access, mkdir, readFile, rm, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
 import {execa} from 'execa'
 import {assertValidProjectName} from '../core/project-name'
-import {isRetryableHttpStatus, withNetworkRetry} from '../utils/network-retry'
+import {withNetworkRetry} from '../utils/network-retry'
 import {runCommand} from '../utils/run-command'
-import {userDataDirectory} from '../utils/user-directories'
-
-type VercelProject = {
-  id: string
-  accountId: string
-}
+import {createVercelProject, findProductionDeployment, setBetterAuthSecret, type VercelProject} from './vercel-api'
 
 type ResolvedVercelProject = {
   project: VercelProject
@@ -27,12 +21,6 @@ type RepairEnv = {
 
 type DeployVercelProjectOptions = {
   githubRepository?: string
-}
-
-type VercelDeployment = {
-  state?: string
-  target?: string
-  url?: string
 }
 
 /**
@@ -151,34 +139,6 @@ async function readVercelProjectLink(projectDir: string): Promise<VercelProject 
   }
 }
 
-const AUTH_SECRET_BYTES = 32
-
-function generateAuthSecret() {
-  return randomBytes(AUTH_SECRET_BYTES).toString('base64')
-}
-
-/** BETTER_AUTH_URL은 앱이 VERCEL_*로 런타임 결정하므로 production secret만 설정합니다. */
-async function setBetterAuthSecret(project: VercelProject) {
-  const response = await fetch(
-    `https://api.vercel.com/v10/projects/${project.id}/env?teamId=${project.accountId}&upsert=true`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${await vercelToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify([
-        {key: 'BETTER_AUTH_SECRET', value: generateAuthSecret(), type: 'sensitive', target: ['production']},
-      ]),
-    },
-  )
-
-  const body = await response.json().catch(() => undefined) as {error?: {message?: string}}
-  if (!response.ok) {
-    throw new Error(body?.error?.message ?? 'Better Auth 환경 변수 설정에 실패했습니다.')
-  }
-}
-
 /** Turso에 Drizzle 마이그레이션을 적용해 Better Auth 테이블을 만듭니다. */
 async function migrateTursoDatabase(projectDir: string, turso: RepairEnv) {
   const appDir = join(projectDir, 'apps/main-app')
@@ -233,9 +193,8 @@ async function ensureMobileApiUrl(projectDir: string, projectName: string) {
 async function pullVercelProductionEnv(projectDir: string) {
   const envFile = migrationEnvFile(projectDir)
   try {
-    await withNetworkRetry(
-      'vercel env pull',
-      () => runCommand(
+    await withNetworkRetry('vercel env pull', () =>
+      runCommand(
         'vercel',
         ['env', 'pull', envFile, '--environment', 'production', '--yes'],
         'vercel env pull',
@@ -270,10 +229,7 @@ async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {
     }
 
     let value = trimmed.slice(separator + 1).trim()
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1)
     }
 
@@ -281,40 +237,6 @@ async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {
   }
 
   return values
-}
-
-async function findProductionDeployment(project: VercelProject) {
-  const url = new URL('https://api.vercel.com/v13/deployments')
-  url.searchParams.set('projectId', project.id)
-  url.searchParams.set('target', 'production')
-  url.searchParams.set('limit', '20')
-  url.searchParams.set('teamId', project.accountId)
-
-  const response = await withNetworkRetry(
-    'Vercel deployment 상태 확인',
-    async () => fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${await vercelToken()}`,
-      },
-    }),
-    {shouldRetryResult: (result) => isRetryableHttpStatus(result.status)},
-  )
-
-  const body = await response.json().catch(() => undefined) as {
-    deployments?: VercelDeployment[]
-    error?: {message?: string}
-  }
-  if (!response.ok) {
-    throw new Error(body?.error?.message ?? 'Vercel deployment 상태 확인에 실패했습니다.')
-  }
-
-  const deployment = body.deployments?.find((candidate) => (
-    candidate.state === 'READY' && candidate.target === 'production'
-  ))
-  return {
-    ready: Boolean(deployment),
-    url: deployment?.url ? new URL(`https://${deployment.url}`).toString() : null,
-  }
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */
@@ -340,52 +262,6 @@ async function connectTursoDatabase(projectDir: string, projectName: string) {
   )
 }
 
-/** Vercel API 토큰을 환경 변수 또는 Vercel CLI 인증 파일에서 읽습니다. */
-async function vercelToken() {
-  if (process.env.VERCEL_TOKEN) {
-    return process.env.VERCEL_TOKEN
-  }
-
-  const authPath = join(vercelConfigDirectory(), 'auth.json')
-  const auth = JSON.parse(await readFile(authPath, 'utf8')) as {token?: string}
-  if (!auth.token) {
-    throw new Error('Vercel API 토큰을 찾을 수 없습니다. Vercel CLI에 다시 로그인해주세요.')
-  }
-
-  return auth.token
-}
-
-/** GitHub 저장소와 앱 루트가 설정된 Vercel 프로젝트를 생성합니다. */
-async function createVercelProject(projectName: string, githubRepository: string): Promise<VercelProject> {
-  const response = await fetch('https://api.vercel.com/v11/projects', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${await vercelToken()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      framework: 'vite',
-      gitRepository: {
-        repo: githubRepository,
-        type: 'github',
-      },
-      name: projectName,
-      rootDirectory: 'apps/main-app',
-    }),
-  })
-
-  const body = await response.json().catch(() => undefined) as {
-    accountId?: string
-    error?: {message?: string}
-    id?: string
-  }
-  if (!response.ok || !body?.id || !body.accountId) {
-    throw new Error(body?.error?.message ?? 'Vercel 프로젝트 생성에 실패했습니다.')
-  }
-
-  return {id: body.id, accountId: body.accountId}
-}
-
 /** Vercel CLI가 생성된 프로젝트를 현재 앱 폴더에서 사용할 수 있도록 링크 파일을 씁니다. */
 async function writeVercelProjectLink(appDir: string, project: VercelProject) {
   const vercelDir = join(appDir, '.vercel')
@@ -398,9 +274,4 @@ async function writeVercelProjectLink(appDir: string, project: VercelProject) {
 
 function vercelProjectLinkPath(projectDir: string) {
   return join(projectDir, '.vercel', 'project.json')
-}
-
-/** 현재 플랫폼의 Vercel CLI 설정 폴더 경로를 반환합니다. */
-function vercelConfigDirectory(): string {
-  return join(userDataDirectory(), 'com.vercel.cli')
 }
