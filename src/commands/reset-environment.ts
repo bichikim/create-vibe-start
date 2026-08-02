@@ -1,43 +1,22 @@
 import {spawn} from 'node:child_process'
 import {constants} from 'node:fs'
 import {access, rm} from 'node:fs/promises'
-import {homedir} from 'node:os'
-import path from 'node:path'
 import {intro, isCancel, log, note, outro, text} from '@clack/prompts'
 import chalk from 'chalk'
 import {commandExists} from '../utils/command-exists'
-import {userCacheDirectory, userDataDirectory} from '../utils/user-directories'
-
-/** CLI 환경 초기화를 위해 실행할 외부 명령 단계입니다. */
-type CommandStep = {
-  kind: 'command'
-  label: string
-  command: string
-  args: string[]
-}
-
-/** CLI 환경 초기화를 위해 삭제할 파일 또는 폴더 단계입니다. */
-type RemoveStep = {
-  kind: 'remove'
-  label: string
-  target: string
-}
-
-/** CLI 환경 초기화에서 수행할 수 있는 단계입니다. */
-type Step = CommandStep | RemoveStep
-/** 전역 패키지 제거를 지원하는 패키지 매니저입니다. */
-type PackageManager = 'pnpm' | 'npm'
+import {
+  type CommandStep,
+  createResetSteps,
+  type PackageManager,
+  type RemoveStep,
+  type ResetStep,
+} from './reset-environment-steps'
 
 /** reset 명령 실행 옵션입니다. */
 type ResetOptions = {
   dryRun?: boolean
   yes?: boolean
 }
-
-/** 사용자별 CLI 설정 파일을 찾기 위한 홈 폴더입니다. */
-const home = homedir()
-/** 플랫폼별 설치 제거 명령과 설정 경로를 고르기 위한 Node.js 플랫폼입니다. */
-const {platform} = process
 
 /**
  * GitHub, Vercel, Codex CLI의 설치와 인증 파일을 초기화합니다.
@@ -47,7 +26,7 @@ const {platform} = process
  */
 export async function runResetEnvironment(options: ResetOptions = {}): Promise<boolean> {
   const packageManagers = await globalPackageManagers()
-  const steps: Step[] = [...githubSteps(), ...vercelSteps(packageManagers), ...codexSteps(packageManagers)]
+  const steps = createResetSteps(packageManagers)
 
   intro(chalk.cyan('create-vibe-start reset'))
 
@@ -82,41 +61,6 @@ export async function runResetEnvironment(options: ResetOptions = {}): Promise<b
 }
 
 /**
- * 현재 플랫폼에서 GitHub CLI를 초기화하는 단계 목록을 만듭니다.
- *
- * @returns GitHub CLI 초기화 단계 목록입니다.
- */
-function githubSteps(): Step[] {
-  const steps: Step[] = [
-    {
-      kind: 'remove',
-      label: 'Remove GitHub CLI config/auth files',
-      target: path.join(home, '.config', 'gh'),
-    },
-  ]
-
-  if (platform === 'darwin') {
-    steps.unshift({
-      kind: 'command',
-      label: 'Uninstall GitHub CLI installed by Homebrew',
-      command: 'brew',
-      args: ['uninstall', 'gh'],
-    })
-  }
-
-  if (platform === 'win32') {
-    steps.unshift({
-      kind: 'command',
-      label: 'Uninstall GitHub CLI installed by winget',
-      command: 'winget',
-      args: ['uninstall', '--id', 'GitHub.cli'],
-    })
-  }
-
-  return steps
-}
-
-/**
  * 사용 가능한 전역 패키지 매니저를 감지합니다.
  *
  * @returns PATH에서 찾은 패키지 매니저 목록입니다.
@@ -136,115 +80,13 @@ async function globalPackageManagers(): Promise<PackageManager[]> {
 }
 
 /**
- * Vercel CLI 인증, 패키지, 설정 파일을 초기화하는 단계 목록을 만듭니다.
- *
- * @param packageManagers - 전역 패키지 제거에 사용할 수 있는 패키지 매니저입니다.
- * @returns Vercel CLI 초기화 단계 목록입니다.
- */
-function vercelSteps(packageManagers: PackageManager[]): Step[] {
-  return [
-    {
-      kind: 'command',
-      label: 'Log out of Vercel CLI',
-      command: 'vercel',
-      args: ['logout', '--non-interactive'],
-    },
-    ...uninstallGlobalPackageSteps(packageManagers, 'Vercel CLI', 'vercel'),
-    {
-      kind: 'remove',
-      label: 'Remove Vercel CLI auth/config directory',
-      target: path.join(home, '.vercel'),
-    },
-    {
-      kind: 'remove',
-      label: 'Remove Vercel CLI config directory',
-      target: vercelConfigDirectory(),
-    },
-    {
-      kind: 'remove',
-      label: 'Remove Vercel CLI cache directory',
-      target: vercelCacheDirectory(),
-    },
-  ]
-}
-
-/**
- * 현재 플랫폼의 Vercel CLI 설정 폴더 경로를 반환합니다.
- *
- * @returns Vercel CLI 설정 폴더 경로입니다.
- */
-function vercelConfigDirectory(): string {
-  return path.join(userDataDirectory(), 'com.vercel.cli')
-}
-
-/**
- * 현재 플랫폼의 Vercel CLI 캐시 폴더 경로를 반환합니다.
- *
- * @returns Vercel CLI 캐시 폴더 경로입니다.
- */
-function vercelCacheDirectory(): string {
-  return path.join(userCacheDirectory(), 'com.vercel.cli')
-}
-
-/**
- * Codex CLI 인증, 패키지, 설정 파일을 초기화하는 단계 목록을 만듭니다.
- *
- * @param packageManagers - 전역 패키지 제거에 사용할 수 있는 패키지 매니저입니다.
- * @returns Codex CLI 초기화 단계 목록입니다.
- */
-function codexSteps(packageManagers: PackageManager[]): Step[] {
-  return [
-    {
-      kind: 'command',
-      label: 'Log out of Codex CLI',
-      command: 'codex',
-      args: ['logout'],
-    },
-    ...uninstallGlobalPackageSteps(packageManagers, 'Codex CLI', '@openai/codex'),
-    {
-      kind: 'remove',
-      label: 'Remove Codex CLI auth file',
-      target: path.join(home, '.codex', 'auth.json'),
-    },
-  ]
-}
-
-/**
- * 감지된 패키지 매니저별 전역 패키지 제거 단계를 만듭니다.
- *
- * @param packageManagers - 전역 패키지 제거에 사용할 패키지 매니저 목록입니다.
- * @param name - 사용자에게 표시할 CLI 이름입니다.
- * @param pkg - 제거할 npm 패키지 이름입니다.
- * @returns 패키지 매니저별 제거 명령 단계 목록입니다.
- */
-function uninstallGlobalPackageSteps(packageManagers: PackageManager[], name: string, pkg: string): CommandStep[] {
-  return packageManagers.map((packageManager) => {
-    if (packageManager === 'pnpm') {
-      return {
-        kind: 'command',
-        label: `Uninstall ${name} installed by pnpm`,
-        command: 'pnpm',
-        args: ['remove', '-g', pkg],
-      }
-    }
-
-    return {
-      kind: 'command',
-      label: `Uninstall ${name} installed by npm`,
-      command: 'npm',
-      args: ['uninstall', '-g', pkg],
-    }
-  })
-}
-
-/**
  * 초기화 단계를 순서대로 실행합니다.
  *
  * @param steps - 실행할 초기화 단계 목록입니다.
  * @param dryRun - 실제 변경 없이 단계만 출력할지 여부입니다.
  * @returns 각 단계의 성공 여부 목록입니다.
  */
-async function runSteps(steps: Step[], dryRun: boolean): Promise<boolean[]> {
+async function runSteps(steps: ResetStep[], dryRun: boolean): Promise<boolean[]> {
   const results: boolean[] = []
   for (const step of steps) {
     // Reset steps are intentionally sequential so command output stays readable.
