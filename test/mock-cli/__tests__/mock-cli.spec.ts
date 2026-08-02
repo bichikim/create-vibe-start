@@ -1,4 +1,4 @@
-import {mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {execa} from 'execa'
@@ -25,15 +25,17 @@ describe('mock CLI PATH harness', () => {
   it('resolves stub binaries from PATH with stub version strings', async () => {
     session = await createMockCliSession()
 
-    const [gh, vercel, codex] = await Promise.all([
+    const [gh, vercel, codex, pnpm] = await Promise.all([
       execa('gh', ['--version'], {env: session.env}),
       execa('vercel', ['--version'], {env: session.env}),
       execa('codex', ['--version'], {env: session.env}),
+      execa('pnpm', ['--version'], {env: session.env}),
     ])
 
     expect(gh.stdout).toContain(stubVersions.gh)
     expect(vercel.stdout).toContain(stubVersions.vercel)
     expect(codex.stdout).toContain(stubVersions.codex)
+    expect(pnpm.stdout).toContain(stubVersions.pnpm)
   })
 
   it('passes auth status checks for gh, vercel, and codex', async () => {
@@ -107,4 +109,26 @@ describe('mock CLI PATH harness', () => {
       stderr: expect.stringContaining('unsupported args'),
     })
   })
+
+  it('no-ops pnpm install, db:migrate, and cap update', async () => {
+    session = await createMockCliSession()
+    const projectDir = await makeTempDir()
+    const appDir = join(projectDir, 'apps/main-app')
+    await mkdir(appDir, {recursive: true})
+
+    await execa('pnpm', ['i'], {cwd: projectDir, env: session.env})
+    await execa('pnpm', ['db:migrate'], {cwd: appDir, env: session.env})
+    await execa('pnpm', ['exec', 'cap', 'update', 'android'], {
+      cwd: appDir,
+      env: session.env,
+    })
+
+    const calls = await session.readCalls()
+    expect(calls.map((call) => [call.bin, ...call.args])).toEqual([
+      ['pnpm', 'i'],
+      ['pnpm', 'db:migrate'],
+      ['pnpm', 'exec', 'cap', 'update', 'android'],
+    ])
+  })
 })
+

@@ -28,10 +28,10 @@ export type MockCliSession = {
   cleanup: () => Promise<void>
 }
 
-const MOCK_BINS = ['gh', 'vercel', 'codex'] as const
+const MOCK_BINS = ['gh', 'vercel', 'codex', 'pnpm'] as const
 
 /**
- * Install mock `gh`/`vercel`/`codex` binaries on a temporary PATH prefix.
+ * Install mock `gh`/`vercel`/`codex`/`pnpm` binaries on a temporary PATH prefix.
  */
 export async function createMockCliSession(options: MockCliSessionOptions = {}): Promise<MockCliSession> {
   const root = await mkdtemp(join(tmpdir(), 'mock-cli-'))

@@ -6,6 +6,7 @@ import {homedir} from 'node:os'
 const STUB_GH_VERSION = 'gh version 0.0.0-mock (mock-cli)'
 const STUB_VERCEL_VERSION = 'Vercel CLI 0.0.0-mock'
 const STUB_CODEX_VERSION = 'codex-cli 0.0.0-mock'
+const STUB_PNPM_VERSION = '10.0.0-mock'
 
 function mockOwner() {
   return process.env.MOCK_CLI_OWNER ?? 'mock-owner'
@@ -45,6 +46,9 @@ export async function handleScenario(bin, args) {
   }
   if (bin === 'codex') {
     return handleCodex(args)
+  }
+  if (bin === 'pnpm') {
+    return handlePnpm(args)
   }
 
   return unsupported(bin, args)
@@ -152,7 +156,38 @@ async function handleCodex(args) {
     return {stdout: 'Successfully logged in', exitCode: 0}
   }
 
+  if (args[0] === 'app') {
+    return {stdout: `Opened Codex app for ${args[1] ?? process.cwd()}`, exitCode: 0}
+  }
+
   return unsupported('codex', args)
+}
+
+/**
+ * @param {string[]} args
+ */
+async function handlePnpm(args) {
+  if (args[0] === '--version' || args[0] === '-v') {
+    return {stdout: STUB_PNPM_VERSION, exitCode: 0}
+  }
+
+  if (args[0] === 'i' || args[0] === 'install') {
+    return {stdout: 'Done in 0s using mock pnpm', exitCode: 0}
+  }
+
+  if (args[0] === 'db:migrate') {
+    return {stdout: 'mock pnpm db:migrate complete', exitCode: 0}
+  }
+
+  if (args[0] === 'exec' && args[1] === 'cap' && args[2] === 'update' && args[3] === 'android') {
+    return {stdout: 'mock cap update android complete', exitCode: 0}
+  }
+
+  if (args[0] === 'run' && args[1] === 'dev') {
+    return {stdout: 'mock pnpm run dev started', exitCode: 0}
+  }
+
+  return unsupported('pnpm', args)
 }
 
 /**
@@ -195,4 +230,5 @@ export const stubVersions = {
   gh: STUB_GH_VERSION,
   vercel: STUB_VERCEL_VERSION,
   codex: STUB_CODEX_VERSION,
+  pnpm: STUB_PNPM_VERSION,
 }
