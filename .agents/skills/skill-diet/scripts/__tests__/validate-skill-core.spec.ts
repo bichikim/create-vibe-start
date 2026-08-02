@@ -164,6 +164,73 @@ description: >
 `),
     ).not.toThrow()
   })
+
+  it('should parse literal block descriptions', () => {
+    expect(() =>
+      validateSkillContent(`---
+name: valid-skill
+description: |
+  Keep this skill small
+  and useful.
+---
+`),
+    ).not.toThrow()
+  })
+
+  it('should accept empty scalar values', () => {
+    expect(() =>
+      validateSkillContent(`---
+name: valid-skill
+description:
+license: MIT
+---
+`),
+    ).not.toThrow()
+  })
+
+  it('should accept quoted scalar values', () => {
+    expect(() =>
+      validateSkillContent(`---
+name: 'valid-skill'
+description: "Keep this skill small and useful."
+---
+`),
+    ).not.toThrow()
+  })
+
+  it('should reject nested name values', () => {
+    expect(() =>
+      validateSkillContent(`---
+name:
+  nested: true
+description: Keep this skill small and useful.
+---
+`),
+    ).toThrow('Name must be a string, got object')
+  })
+
+  it('should reject nested description values', () => {
+    expect(() =>
+      validateSkillContent(`---
+name: valid-skill
+description:
+  nested: true
+---
+`),
+    ).toThrow('Description must be a string, got object')
+  })
+
+  it('should ignore blank and comment frontmatter lines', () => {
+    expect(() =>
+      validateSkillContent(`---
+# comment
+
+name: valid-skill
+description: Keep this skill small and useful.
+---
+`),
+    ).not.toThrow()
+  })
 })
 
 describe('validateSkillDirectory', () => {
@@ -187,6 +254,12 @@ description: Keep this skill small and useful.
     const directory = await createTempDirectory()
 
     expect(() => validateSkillDirectory(directory)).toThrow('SKILL.md not found')
+  })
+
+  it('should rethrow validation errors from SKILL.md content', async () => {
+    const directory = await createSkill(`# Missing frontmatter\n`)
+
+    expect(() => validateSkillDirectory(directory)).toThrow('No YAML frontmatter found')
   })
 })
 
