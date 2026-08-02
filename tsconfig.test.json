@@ -5,6 +5,14 @@
     "rootDir": ".",
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "scripts/**/*.js", "vite.config.ts", "vitest.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.js",
+    "test/**/*.ts",
+    "test/**/*.mjs",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
   "exclude": []
 }
