@@ -57,7 +57,7 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toContain('Nitro, Vue, oRPC, Zod, Drizzle')
     await expect(readFile(join(projectDir, 'package.json'), 'utf8')).resolves.toContain('@vibe-start-app/main-app')
     await expect(readFile(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')).resolves.toContain('catalog:')
-    await expect(readFile(join(projectDir, '.env.example'), 'utf8')).resolves.toContain(
+    await expect(readFile(join(projectDir, 'apps/main-app/.env.example'), 'utf8')).resolves.toContain(
       'TURSO_DATABASE_URL=file:./data/app.db',
     )
     await expect(readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')).resolves.toContain(
