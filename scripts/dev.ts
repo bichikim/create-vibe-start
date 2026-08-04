@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {developmentCliArguments} from './development-workflow'
 
+// Windows에서는 pnpm 실행 파일이 .cmd로 설치되므로 플랫폼에 맞는 이름을 사용한다.
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
 interface RunOptions {
@@ -12,6 +13,7 @@ interface RunOptions {
 }
 
 function run(args: ReadonlyArray<string>, options: RunOptions = {}) {
+  // build, pack, CLI가 순서대로 끝나야 같은 산출물을 사용하므로 각 명령이 끝날 때까지 기다린다.
   const result = spawnSync(pnpm, Array.from(args), {stdio: options.stdio ?? 'inherit', env: options.env})
   if (result.error) {
     throw result.error
@@ -22,9 +24,11 @@ function run(args: ReadonlyArray<string>, options: RunOptions = {}) {
 }
 
 async function main() {
+  // 개발용 tarball은 생성 프로젝트에 복사할 때까지만 필요하므로 저장소 밖의 임시 폴더에 만든다.
   const packageDir = await mkdtemp(join(tmpdir(), 'create-vibe-start-dev-'))
 
   try {
+    // npm에 배포될 파일과 같은 구성을 검증하기 위해 현재 소스를 먼저 빌드한 뒤 pnpm pack을 실행한다.
     run(['build'])
     run(['pack', '--pack-destination', packageDir], {stdio: 'pipe'})
 
@@ -35,6 +39,7 @@ async function main() {
     const packagePath = join(packageDir, packageFile)
 
     if (process.argv.includes('--verify')) {
+      // CI도 pnpm dev와 동일한 tarball을 받아 생성, 설치, setup 실행까지 검증한다.
       run(['exec', 'vitest', 'run', 'test/e2e/__tests__/local-setup-package.e2e.spec.ts'], {
         env: {
           ...process.env,
@@ -47,8 +52,10 @@ async function main() {
 
     const providedArguments = process.argv.slice(2)
     const extraArguments = providedArguments[0] === '--' ? providedArguments.slice(1) : providedArguments
+    // 일반 개발 실행에서는 사용자가 옵션을 붙이지 않아도 방금 만든 tarball 경로를 CLI에 전달한다.
     run(developmentCliArguments(packagePath, extraArguments))
   } finally {
+    // 성공, 실패, 사용자 취소와 관계없이 저장소 밖의 임시 패키지를 남기지 않는다.
     await rm(packageDir, {recursive: true, force: true})
   }
 }
