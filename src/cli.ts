@@ -20,9 +20,11 @@ export function createProgram() {
     .option('--skip-vercel', 'Skip Vercel CLI setup')
     .option('--skip-codex', 'Skip Codex CLI setup')
     .option('--project-dir <path>', 'Default project working directory')
+    // 루트 개발 스크립트가 만든 패키지를 검증할 때만 사용하며 일반 생성 경로에서는 전달하지 않는다.
     .option('--local-setup-package <path>', 'Use a local create-vibe-start package tarball in the generated project')
     .action((options: CreateProjectOptions) => runCreateProject(options))
 
+  // 생성 시 배포를 건너뛴 사용자도 프로젝트 루트에서 같은 설정 흐름을 다시 시작할 수 있다.
   program
     .command('setup')
     .description('Configure deployment for an existing generated project.')

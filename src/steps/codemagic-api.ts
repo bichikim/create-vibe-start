@@ -13,10 +13,12 @@ interface StartBuildOptions {
 
 const API_URL = 'https://api.codemagic.io'
 
+/** 저장된 Application ID가 현재 token으로 접근 가능한지 확인한다. */
 export async function verifyCodemagicApplication(applicationId: string, token: string): Promise<void> {
   await codemagicRequest(`/apps/${encodeURIComponent(applicationId)}`, token)
 }
 
+/** Git remote URL을 Codemagic에 등록하고 이후 요청에 사용할 Application ID만 반환한다. */
 export async function registerCodemagicApplication(
   repositoryUrl: string,
   token: string,
@@ -32,6 +34,7 @@ export async function registerCodemagicApplication(
   return application
 }
 
+/** 선택한 branch와 workflow로 빌드를 시작하고 대시보드 링크에 사용할 Build ID를 반환한다. */
 export async function startCodemagicBuild(options: StartBuildOptions): Promise<string> {
   const value = await codemagicRequest('/builds', options.token, {
     method: 'POST',

@@ -21,6 +21,7 @@ describe.runIf(enabled)('local setup package e2e', () => {
       throw new Error('개발 워크플로가 준비한 create-vibe-start tarball 경로가 없습니다.')
     }
 
+    // pnpm dev가 만든 실제 tarball 경로가 생성 CLI의 옵션으로 전달되는지 먼저 확인한다.
     const cliArguments = developmentCliArguments(preparedPackagePath)
     const optionIndex = cliArguments.indexOf('--local-setup-package')
     packagePath = cliArguments[optionIndex + 1] ?? ''
@@ -43,10 +44,12 @@ describe.runIf(enabled)('local setup package e2e', () => {
 
     expect(generatedPackage.scripts.setup).toBe('create-vibe-start setup --dir .')
     expect(generatedPackage.devDependencies['create-vibe-start']).toBe('file:.vibe-start/create-vibe-start.tgz')
+    // 파일 이름만 같은 가짜 fixture가 아니라 방금 pack한 바이트가 그대로 포함됐는지 비교한다.
     const sourcePackage = await readFile(packagePath)
     const embeddedPackage = await readFile(join(projectDir, '.vibe-start/create-vibe-start.tgz'))
     expect(embeddedPackage.equals(sourcePackage)).toBe(true)
 
+    // 생성 프로젝트의 실제 pnpm 경로를 사용해 로컬 file 의존성과 bin 연결을 함께 검증한다.
     await execa('pnpm', ['install', '--no-frozen-lockfile', '--ignore-scripts'], {
       cwd: projectDir,
       timeout: 120_000,
@@ -58,6 +61,7 @@ describe.runIf(enabled)('local setup package e2e', () => {
 
     expect(setup.stdout).toContain('프로젝트 setup runtime 확인 완료: local-setup-e2e')
 
+    // setup 마법사가 호출하는 플랫폼별 App ID 명령도 pnpm 인자 전달까지 실제로 실행한다.
     await execa('pnpm', ['run', 'app-id', 'ios', 'com.example.localsetup'], {
       cwd: projectDir,
       timeout: 30_000,

@@ -24,6 +24,7 @@
   },
   "packageManager": "pnpm@11.1.2",
   "devDependencies": {
+    {{! 개발 모드에서만 함께 복사한 tarball을 설치하며 정식 생성물에는 이 항목이 남지 않는다. }}
     {{#if localSetupPackage}}
     "create-vibe-start": "file:.vibe-start/create-vibe-start.tgz",
     {{/if}}

@@ -5,6 +5,7 @@ import {createGitHubRepository, ensureGitCommitIdentity, type GitHubVisibility} 
 
 const REPOSITORY_PATTERN = /^[^/\s]+\/[^/\s]+$/u
 
+/** 현재 remote가 가리키는 GitHub 저장소를 owner/name 형식으로 읽는다. */
 export async function readGitHubRepository(projectDir: string): Promise<string | undefined> {
   try {
     const result = await withNetworkRetry('gh repo view', () =>

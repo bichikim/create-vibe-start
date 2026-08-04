@@ -15,6 +15,7 @@ export interface ProjectSetupConfig {
 
 const EMPTY_CONFIG: ProjectSetupConfig = {schemaVersion: 1}
 
+/** 반복 실행에 필요한 공개 식별자만 읽고, 파일이 없으면 최초 설정 상태를 반환한다. */
 export async function readProjectSetupConfig(projectDir: string): Promise<ProjectSetupConfig> {
   try {
     const value: unknown = JSON.parse(await readFile(configPath(projectDir), 'utf8'))
@@ -25,6 +26,7 @@ export async function readProjectSetupConfig(projectDir: string): Promise<Projec
   }
 }
 
+/** 다음 setup 실행이 이어받을 수 있도록 공개 식별자를 프로젝트 루트에 기록한다. */
 export async function writeProjectSetupConfig(projectDir: string, config: ProjectSetupConfig) {
   // 이 파일에는 공개 가능한 App ID와 Codemagic Application ID만 저장하고 token은 저장하지 않는다.
   await writeFile(configPath(projectDir), `${JSON.stringify(config, null, 2)}\n`, 'utf8')

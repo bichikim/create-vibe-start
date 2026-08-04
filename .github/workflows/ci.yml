@@ -41,6 +41,7 @@ jobs:
       - name: Coverage
         run: pnpm coverage
 
+      # npm publish 전에 개발용 tarball이 생성 프로젝트에서 실제로 실행되는지 확인한다.
       - name: Build and verify local setup package
         run: pnpm verify:local-setup
 

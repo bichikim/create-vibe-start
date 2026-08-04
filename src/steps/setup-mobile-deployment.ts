@@ -9,6 +9,7 @@ type BuildSelection = MobileSelection | 'later'
 
 const APP_ID_PATTERN = /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/u
 
+/** 플랫폼 선택부터 App ID 갱신과 선택적 Codemagic 연결까지 대화형으로 진행한다. */
 export async function setupMobileDeployment(projectDir: string) {
   const selection = await selectMobilePlatforms()
   const platforms = selectedPlatforms(selection)
@@ -29,6 +30,7 @@ export async function setupMobileDeployment(projectDir: string) {
   }
 }
 
+/** 저장된 모바일 플랫폼을 사용해 Codemagic 연결이나 빌드만 다시 진행한다. */
 export async function runCodemagicBuild(projectDir: string) {
   const config = await readProjectSetupConfig(projectDir)
   const platforms = configuredPlatforms(config)
