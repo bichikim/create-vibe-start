@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "{{setupCommand}}",
     "dev": "pnpm --filter @{{projectName}}/main-app dev",
     "build": "pnpm --filter @{{projectName}}/main-app build",
     "mobile:build": "pnpm --filter @{{projectName}}/main-app mobile:build",
@@ -23,6 +24,9 @@
   },
   "packageManager": "pnpm@11.1.2",
   "devDependencies": {
+    {{#if localSetupPackage}}
+    "create-vibe-start": "file:.vibe-start/create-vibe-start.tgz",
+    {{/if}}
     "@types/node": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",

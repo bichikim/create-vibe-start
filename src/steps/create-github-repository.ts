@@ -8,6 +8,8 @@ export type GitCommitIdentity = {
   email: string
 }
 
+export type GitHubVisibility = 'private' | 'public'
+
 /**
  * 생성된 프로젝트를 GitHub CLI 로그인 계정의 새 저장소로 올립니다.
  *
@@ -15,7 +17,12 @@ export type GitCommitIdentity = {
  * @param projectName - 생성할 GitHub 저장소 이름입니다.
  * @returns 생성된 GitHub 저장소의 owner/name 형식 이름입니다.
  */
-export async function createGitHubRepository(projectDir: string, projectName: string, identity?: GitCommitIdentity) {
+export async function createGitHubRepository(
+  projectDir: string,
+  projectName: string,
+  identity?: GitCommitIdentity,
+  visibility: GitHubVisibility = 'private',
+) {
   log.step(chalk.bold('GitHub 저장소 생성'))
 
   await runCommand('git', ['init'], 'git init', projectDir)
@@ -24,8 +31,8 @@ export async function createGitHubRepository(projectDir: string, projectName: st
   await runCommand('git', ['commit', '-m', 'Initial commit'], 'git commit -m "Initial commit"', projectDir)
   await runCommand(
     'gh',
-    ['repo', 'create', projectName, '--private', '--source', '.', '--remote', 'origin', '--push'],
-    `gh repo create ${projectName} --private --source . --remote origin --push`,
+    ['repo', 'create', projectName, `--${visibility}`, '--source', '.', '--remote', 'origin', '--push'],
+    `gh repo create ${projectName} --${visibility} --source . --remote origin --push`,
     projectDir,
   )
   const result = await withNetworkRetry('gh repo view', () =>
@@ -36,7 +43,7 @@ export async function createGitHubRepository(projectDir: string, projectName: st
   return result.stdout.trim()
 }
 
-async function ensureGitCommitIdentity(projectDir: string, identity?: GitCommitIdentity) {
+export async function ensureGitCommitIdentity(projectDir: string, identity?: GitCommitIdentity) {
   const [name, email] = await Promise.all([
     readGitConfig(projectDir, 'user.name'),
     readGitConfig(projectDir, 'user.email'),

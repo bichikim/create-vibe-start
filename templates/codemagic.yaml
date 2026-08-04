@@ -5,6 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       groups:
+        - mobile
         - google_play
       android_signing:
         - android_keystore
@@ -62,6 +63,8 @@ workflows:
     integrations:
       app_store_connect: app_store_connect
     environment:
+      groups:
+        - mobile
       ios_signing:
         distribution_type: app_store
         bundle_identifier: "{{nativeAppId}}"

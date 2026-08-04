@@ -5,6 +5,7 @@ import {Command} from 'commander'
 import {type CreateProjectOptions, runCreateProject} from './commands/create-project'
 import {runRepairVercel} from './commands/repair-vercel'
 import {runResetEnvironment} from './commands/reset-environment'
+import {runSetupProject} from './commands/setup-project'
 
 const require = createRequire(import.meta.url)
 const packageJson = require('../package.json') as {version: string}
@@ -19,7 +20,15 @@ export function createProgram() {
     .option('--skip-vercel', 'Skip Vercel CLI setup')
     .option('--skip-codex', 'Skip Codex CLI setup')
     .option('--project-dir <path>', 'Default project working directory')
+    .option('--local-setup-package <path>', 'Use a local create-vibe-start package tarball in the generated project')
     .action((options: CreateProjectOptions) => runCreateProject(options))
+
+  program
+    .command('setup')
+    .description('Configure deployment for an existing generated project.')
+    .requiredOption('--dir <path>', 'Generated project directory')
+    .option('--check', 'Verify that the generated project can load the setup runtime without prompts')
+    .action((options: unknown) => runSetupProject(options))
 
   program
     .command('repair')

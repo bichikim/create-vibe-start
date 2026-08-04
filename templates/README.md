@@ -1,5 +1,17 @@
 # {{projectName}}
 
+## Deployment setup wizard
+
+Run the project setup wizard at any time after project creation:
+
+```bash
+pnpm run setup
+```
+
+Use it to connect a new or existing GitHub repository, configure and deploy Vercel, prepare new or existing iOS and Android store apps, connect Codemagic, inspect setup status, and optionally start the `ios-release` or `android-release` workflow. Account enrollment, store app creation, code-signing identities, and store credentials still require confirmation in the Apple, Google Play, or Codemagic web consoles. The wizard prints the relevant links and can be safely run again.
+
+Set `CODEMAGIC_API_TOKEN` before running the wizard to avoid entering it interactively. The token and store secrets are never written to this repository. The non-secret native IDs and Codemagic Application ID are saved in `vibe-start.config.json`.
+
 Single full-stack starter with Nitro, Vue, oRPC, Zod, Drizzle, Better Auth, and SQLite-compatible storage.
 
 ## Setup
