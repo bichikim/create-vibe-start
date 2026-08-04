@@ -1,5 +1,6 @@
 import {access, mkdir, readFile, rm, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
+import {parseEnv} from 'node:util'
 import {log} from '@clack/prompts'
 import chalk from 'chalk'
 import {execa} from 'execa'
@@ -239,38 +240,17 @@ async function pullVercelProductionEnv(projectDir: string) {
 }
 
 async function readRepairEnvFromFile(envFile: string): Promise<RepairEnv> {
-  const content = await readFile(envFile, 'utf8')
+  const environment = parseEnv(await readFile(envFile, 'utf8'))
   const values: RepairEnv = {}
 
-  for (const line of content.split('\n')) {
-    const entry = repairEnvEntry(line)
-    if (entry !== undefined) {
-      const [key, value] = entry
+  for (const key of ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'BETTER_AUTH_SECRET'] as const) {
+    const value = environment[key]
+    if (value !== undefined) {
       values[key] = value
     }
   }
 
   return values
-}
-
-type RepairEnvEntry = readonly [keyof RepairEnv, string]
-
-function repairEnvEntry(line: string): RepairEnvEntry | undefined {
-  const trimmed = line.trim()
-  const separator = trimmed.indexOf('=')
-  if (!trimmed || trimmed.startsWith('#') || separator === -1) {
-    return undefined
-  }
-
-  const key = trimmed.slice(0, separator).trim()
-  if (key !== 'TURSO_DATABASE_URL' && key !== 'TURSO_AUTH_TOKEN' && key !== 'BETTER_AUTH_SECRET') {
-    return undefined
-  }
-
-  const rawValue = trimmed.slice(separator + 1).trim()
-  const quoted =
-    (rawValue.startsWith('"') && rawValue.endsWith('"')) || (rawValue.startsWith("'") && rawValue.endsWith("'"))
-  return [key, quoted ? rawValue.slice(1, -1) : rawValue]
 }
 
 /** Vercel Marketplace Turso 리소스를 만들고 현재 프로젝트의 production 환경에 연결합니다. */

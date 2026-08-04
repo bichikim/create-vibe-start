@@ -9,6 +9,10 @@ const createGitHubRepositoryMock = vi.fn()
 const ensureGitCommitIdentityMock = vi.fn()
 const cancel = Symbol('cancel')
 
+function missingOrigin() {
+  return Object.assign(new Error('missing origin'), {exitCode: 1})
+}
+
 vi.mock('@clack/prompts', () => ({
   confirm: confirmMock,
   select: selectMock,
@@ -51,10 +55,28 @@ describe('connectGitHubProject', () => {
   })
 
   it('returns undefined when the current repository cannot be resolved', async () => {
-    runCommandQuietlyMock.mockRejectedValue(new Error('missing'))
+    runCommandQuietlyMock.mockRejectedValue(missingOrigin())
     const {readGitHubRepository} = await import('../connect-github-project')
 
     await expect(readGitHubRepository('/repo')).resolves.toBeUndefined()
+  })
+
+  it('preserves GitHub authentication and network failures when origin exists', async () => {
+    const networkError = new Error('authentication failed')
+    runCommandQuietlyMock
+      .mockResolvedValueOnce({stdout: 'https://github.com/owner/repo.git\n'})
+      .mockRejectedValueOnce(networkError)
+    const {readGitHubRepository} = await import('../connect-github-project')
+
+    await expect(readGitHubRepository('/repo')).rejects.toBe(networkError)
+  })
+
+  it('preserves failures that are not a normal missing-origin exit', async () => {
+    const spawnError = Object.assign(new Error('git executable missing'), {code: 'ENOENT'})
+    runCommandQuietlyMock.mockRejectedValue(spawnError)
+    const {readGitHubRepository} = await import('../connect-github-project')
+
+    await expect(readGitHubRepository('/repo')).rejects.toBe(spawnError)
   })
 
   it('returns undefined for an empty repository response', async () => {
@@ -65,7 +87,7 @@ describe('connectGitHubProject', () => {
   })
 
   it.each(['private', 'public'] as const)('creates a new %s repository', async (visibility) => {
-    runCommandQuietlyMock.mockRejectedValue(new Error('missing'))
+    runCommandQuietlyMock.mockRejectedValue(missingOrigin())
     selectMock.mockResolvedValueOnce('new').mockResolvedValueOnce(visibility)
     const {connectGitHubProject} = await import('../connect-github-project')
 
@@ -74,7 +96,7 @@ describe('connectGitHubProject', () => {
   })
 
   it('connects an existing repository without pushing', async () => {
-    runCommandQuietlyMock.mockRejectedValueOnce(new Error('missing')).mockResolvedValueOnce({stdout: '{}'})
+    runCommandQuietlyMock.mockRejectedValueOnce(missingOrigin()).mockResolvedValueOnce({stdout: '{}'})
     selectMock.mockResolvedValue('existing')
     textMock.mockResolvedValue(' owner/repo ')
     const {connectGitHubProject} = await import('../connect-github-project')
@@ -94,7 +116,7 @@ describe('connectGitHubProject', () => {
   })
 
   it('does not push when push confirmation is cancelled', async () => {
-    runCommandQuietlyMock.mockRejectedValueOnce(new Error('missing')).mockResolvedValueOnce({stdout: '{}'})
+    runCommandQuietlyMock.mockRejectedValueOnce(missingOrigin()).mockResolvedValueOnce({stdout: '{}'})
     selectMock.mockResolvedValue('existing')
     textMock.mockResolvedValue('owner/repo')
     confirmMock.mockResolvedValue(cancel)
@@ -115,7 +137,7 @@ describe('connectGitHubProject', () => {
     [true, new Error('no head'), true],
   ])('optionally pushes an existing repository', async (_push, headResult, createsCommit) => {
     runCommandQuietlyMock
-      .mockRejectedValueOnce(new Error('missing'))
+      .mockRejectedValueOnce(missingOrigin())
       .mockResolvedValueOnce({stdout: '{}'})
       .mockImplementationOnce(() => {
         return headResult instanceof Error ? Promise.reject(headResult) : Promise.resolve(headResult)
@@ -140,7 +162,7 @@ describe('connectGitHubProject', () => {
     ['mode', [cancel]],
     ['visibility', ['new', cancel]],
   ])('handles cancellation at %s selection', async (_label, answers) => {
-    runCommandQuietlyMock.mockRejectedValue(new Error('missing'))
+    runCommandQuietlyMock.mockRejectedValue(missingOrigin())
     selectMock.mockResolvedValueOnce(answers[0]).mockResolvedValueOnce(answers[1])
     const {connectGitHubProject} = await import('../connect-github-project')
 
@@ -148,7 +170,7 @@ describe('connectGitHubProject', () => {
   })
 
   it('handles cancellation while entering an existing repository', async () => {
-    runCommandQuietlyMock.mockRejectedValue(new Error('missing'))
+    runCommandQuietlyMock.mockRejectedValue(missingOrigin())
     selectMock.mockResolvedValue('existing')
     textMock.mockResolvedValue(cancel)
     const {connectGitHubProject} = await import('../connect-github-project')

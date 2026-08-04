@@ -1,6 +1,6 @@
 import {readFile, writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
-import {isRecord} from '../utils/is-record'
+import {z} from 'zod'
 
 export interface ProjectSetupConfig {
   readonly schemaVersion: 1
@@ -14,15 +14,34 @@ export interface ProjectSetupConfig {
 }
 
 const EMPTY_CONFIG: ProjectSetupConfig = {schemaVersion: 1}
+const nonEmptyString = z.string().trim().min(1)
+const projectSetupConfigSchema: z.ZodType<ProjectSetupConfig> = z.object({
+  schemaVersion: z.literal(1),
+  mobile: z
+    .object({
+      iosBundleId: nonEmptyString.optional(),
+      androidPackageName: nonEmptyString.optional(),
+    })
+    .optional(),
+  codemagic: z.object({applicationId: nonEmptyString}).optional(),
+})
 
 /** 반복 실행에 필요한 공개 식별자만 읽고, 파일이 없으면 최초 설정 상태를 반환한다. */
 export async function readProjectSetupConfig(projectDir: string): Promise<ProjectSetupConfig> {
+  let content: string
   try {
-    const value: unknown = JSON.parse(await readFile(configPath(projectDir), 'utf8'))
-    return isProjectSetupConfig(value) ? value : EMPTY_CONFIG
-  } catch {
-    // 설정 파일이 없거나 읽을 수 없으면 빈 상태로 시작해 마법사에서 다시 설정할 수 있게 한다.
-    return EMPTY_CONFIG
+    content = await readFile(configPath(projectDir), 'utf8')
+  } catch (error) {
+    if (hasErrorCode(error, 'ENOENT')) {
+      return EMPTY_CONFIG
+    }
+    throw new Error('프로젝트 설정 파일을 읽을 수 없습니다.', {cause: error})
+  }
+
+  try {
+    return projectSetupConfigSchema.parse(JSON.parse(content))
+  } catch (error) {
+    throw new Error('프로젝트 설정 파일의 형식이 올바르지 않습니다.', {cause: error})
   }
 }
 
@@ -36,6 +55,6 @@ function configPath(projectDir: string) {
   return join(projectDir, 'vibe-start.config.json')
 }
 
-function isProjectSetupConfig(value: unknown): value is ProjectSetupConfig {
-  return isRecord(value) && value.schemaVersion === 1
+function hasErrorCode(error: unknown, code: string) {
+  return error instanceof Error && 'code' in error && error.code === code
 }

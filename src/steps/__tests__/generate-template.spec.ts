@@ -247,6 +247,12 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
       '"name": "vite-capacitor"',
     )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
+      '"execa": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
+      "await import('execa')",
+    )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
       'lowercase reverse-domain notation',
     )

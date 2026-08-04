@@ -1,6 +1,7 @@
 import {confirm, isCancel, select, text} from '@clack/prompts'
 import {withNetworkRetry} from '../utils/network-retry'
 import {runCommand, runCommandQuietly} from '../utils/run-command'
+import {isRecord} from '../utils/is-record'
 import {createGitHubRepository, ensureGitCommitIdentity, type GitHubVisibility} from './create-github-repository'
 
 const REPOSITORY_PATTERN = /^[^/\s]+\/[^/\s]+$/u
@@ -8,14 +9,23 @@ const REPOSITORY_PATTERN = /^[^/\s]+\/[^/\s]+$/u
 /** 현재 remote가 가리키는 GitHub 저장소를 owner/name 형식으로 읽는다. */
 export async function readGitHubRepository(projectDir: string): Promise<string | undefined> {
   try {
-    const result = await withNetworkRetry('gh repo view', () =>
-      runCommandQuietly('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], projectDir),
-    )
-    return result.stdout.trim() || undefined
-  } catch {
-    // 아직 Git 저장소가 아니거나 GitHub remote가 없는 상태는 후속 연결이 가능한 정상 상태다.
-    return undefined
+    await runCommandQuietly('git', ['config', '--get', 'remote.origin.url'], projectDir)
+  } catch (error) {
+    if (isCommandExit(error, 1)) {
+      // Git 설정에 origin이 없는 경우만 후속 연결이 가능한 정상 상태로 취급한다.
+      return undefined
+    }
+    throw error
   }
+
+  const result = await withNetworkRetry('gh repo view', () =>
+    runCommandQuietly('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], projectDir),
+  )
+  return result.stdout.trim() || undefined
+}
+
+function isCommandExit(error: unknown, exitCode: number) {
+  return isRecord(error) && error.exitCode === exitCode
 }
 
 /** Connects a generated project to either a new or an existing GitHub repository. */

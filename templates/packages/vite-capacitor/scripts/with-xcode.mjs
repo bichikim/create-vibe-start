@@ -1,5 +1,5 @@
-import {spawnSync} from 'node:child_process'
 import {existsSync} from 'node:fs'
+import {execaSync} from 'execa'
 
 const defaultDeveloperDir = '/Applications/Xcode.app/Contents/Developer'
 const [, , command, ...args] = process.argv
@@ -15,26 +15,24 @@ function fail(message) {
 }
 
 function canRun(checkCommand, checkArgs) {
-  const result = spawnSync(checkCommand, checkArgs, {
+  const result = execaSync(checkCommand, checkArgs, {
     encoding: 'utf8',
     env,
+    reject: false,
     stdio: 'pipe',
   })
 
-  return result.status === 0
+  return !result.failed
 }
 
 function run() {
-  const result = spawnSync(command, args, {
+  const result = execaSync(command, args, {
     env,
+    reject: false,
     stdio: 'inherit',
   })
 
-  if (result.error) {
-    fail(result.error.message)
-  }
-
-  process.exit(result.status ?? 1)
+  process.exit(result.exitCode ?? 1)
 }
 
 if (!command) {

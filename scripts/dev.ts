@@ -1,4 +1,4 @@
-import {mkdtemp, readdir, rm} from 'node:fs/promises'
+import {mkdtemp, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {execaSync} from 'execa'
@@ -26,13 +26,9 @@ async function main() {
   try {
     // npm에 배포될 파일과 같은 구성을 검증하기 위해 현재 소스를 먼저 빌드한 뒤 pnpm pack을 실행한다.
     run(['build'])
-    run(['pack', '--pack-destination', packageDir], {stdio: 'pipe'})
-
-    const packageFile = (await readdir(packageDir)).find((file) => file.endsWith('.tgz'))
-    if (!packageFile) {
-      throw new Error('pnpm pack 결과에서 create-vibe-start tarball을 찾을 수 없습니다.')
-    }
-    const packagePath = join(packageDir, packageFile)
+    const packagePath = join(packageDir, 'create-vibe-start.tgz')
+    // pnpm의 공식 출력 경로 옵션을 사용해 tarball 탐색 없이 이후 단계가 정확한 파일을 참조하게 한다.
+    run(['pack', '--out', packagePath], {stdio: 'pipe'})
 
     if (process.argv.includes('--verify')) {
       // CI도 pnpm dev와 동일한 tarball을 받아 생성, 설치, setup 실행까지 검증한다.

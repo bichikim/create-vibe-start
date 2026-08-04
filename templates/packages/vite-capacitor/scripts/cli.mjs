@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import {spawnSync} from 'node:child_process'
 import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -14,20 +13,19 @@ function fail(message) {
   process.exit(1)
 }
 
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+async function run(command, args, options = {}) {
+  // app-id는 의존성 설치 전에도 실행할 수 있도록 외부 명령이 필요한 build 경로에서만 Execa를 불러온다.
+  const {execa} = await import('execa')
+  const result = await execa(command, args, {
     cwd: appDir,
     env: process.env,
+    reject: false,
     stdio: 'inherit',
     ...options,
   })
 
-  if (result.error) {
-    fail(result.error.message)
-  }
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1)
+  if (result.failed) {
+    process.exit(result.exitCode ?? 1)
   }
 }
 
@@ -104,10 +102,10 @@ function updateCodemagicId(key, appId) {
   replaceInFile(codemagicPath, [[pattern, `${key}: "${appId}"`]])
 }
 
-function buildIos() {
-  run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
-  run('cap', ['sync', 'ios'])
-  run('node', [
+async function buildIos() {
+  await run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
+  await run('cap', ['sync', 'ios'])
+  await run('node', [
     join(packageDir, 'scripts/with-xcode.mjs'),
     'xcodebuild',
     '-project',
@@ -122,10 +120,10 @@ function buildIos() {
   ])
 }
 
-function buildAndroid() {
-  run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
-  run('cap', ['sync', 'android'])
-  run('node', [withAndroidScript, './gradlew', 'assembleDebug'], {cwd: join(appDir, 'android')})
+async function buildAndroid() {
+  await run('vite', ['build', '--config', 'vite.mobile.config.ts', '--mode', 'mobile'])
+  await run('cap', ['sync', 'android'])
+  await run('node', [withAndroidScript, './gradlew', 'assembleDebug'], {cwd: join(appDir, 'android')})
 }
 
 if (command === 'app-id' && secondArgument && firstArgument === 'ios') {
@@ -135,9 +133,9 @@ if (command === 'app-id' && secondArgument && firstArgument === 'ios') {
 } else if (command === 'app-id' && firstArgument) {
   setAppId(firstArgument)
 } else if (command === 'build' && firstArgument === 'ios') {
-  buildIos()
+  await buildIos()
 } else if (command === 'build' && firstArgument === 'android') {
-  buildAndroid()
+  await buildAndroid()
 } else if (command === 'build') {
   fail(`Unknown build target: ${firstArgument}`)
 } else {
