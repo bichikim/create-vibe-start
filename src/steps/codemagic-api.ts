@@ -48,6 +48,7 @@ export async function startCodemagicBuild(options: StartBuildOptions): Promise<s
 }
 
 async function codemagicRequest(path: string, token: string, init: RequestInit = {}): Promise<unknown> {
+  // token은 요청 헤더에만 사용하며 프로젝트 설정이나 오류 메시지에는 포함하지 않는다.
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
@@ -56,6 +57,7 @@ async function codemagicRequest(path: string, token: string, init: RequestInit =
       ...init.headers,
     },
   })
+  // 오류 응답이 JSON이 아니어도 상태 코드를 사용한 안전한 메시지로 변환한다.
   const value: unknown = await response.json().catch(() => undefined)
   if (!response.ok) {
     const message =

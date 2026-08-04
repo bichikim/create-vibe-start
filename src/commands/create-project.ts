@@ -61,9 +61,11 @@ async function selectCreatedProject(options: CreateProjectOptions): Promise<Crea
 function generateSelectedTemplate(options: CreateProjectOptions, project: CreatedProject) {
   const answers = {projectName: project.projectName}
   if (!options.localSetupPackage) {
+    // 일반 사용자에게는 생성 당시의 정식 npm 버전을 참조하는 프로젝트를 만든다.
     return generateTemplate(project.projectDir, answers)
   }
 
+  // 이 옵션은 루트 개발 스크립트가 준비한 tarball을 검증할 때만 사용한다.
   return generateTemplate(project.projectDir, answers, undefined, {
     setupRuntime: {
       kind: 'local-package',

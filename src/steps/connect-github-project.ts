@@ -12,6 +12,7 @@ export async function readGitHubRepository(projectDir: string): Promise<string |
     )
     return result.stdout.trim() || undefined
   } catch {
+    // 아직 Git 저장소가 아니거나 GitHub remote가 없는 상태는 후속 연결이 가능한 정상 상태다.
     return undefined
   }
 }
@@ -20,6 +21,7 @@ export async function readGitHubRepository(projectDir: string): Promise<string |
 export async function connectGitHubProject(projectDir: string, projectName: string): Promise<string> {
   const connectedRepository = await readGitHubRepository(projectDir)
   if (connectedRepository !== undefined) {
+    // 반복 실행 시 이미 연결된 저장소를 그대로 사용해 remote를 중복 생성하지 않는다.
     return connectedRepository
   }
 
@@ -61,6 +63,7 @@ export async function connectGitHubProject(projectDir: string, projectName: stri
   }
 
   const normalizedRepository = repository.trim()
+  // remote를 추가하기 전에 저장소 접근 권한과 owner/name이 실제로 유효한지 확인한다.
   await withNetworkRetry('gh repo view', () =>
     runCommandQuietly('gh', ['repo', 'view', normalizedRepository, '--json', 'nameWithOwner'], projectDir),
   )

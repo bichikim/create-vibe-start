@@ -53,6 +53,7 @@ function setConfigAppId(appId) {
 
 function setAndroidAppId(appId) {
   validateAppId(appId)
+  // Capacitor, Gradle, AndroidManifest, Java package를 한 번에 바꿔 네이티브 식별자를 일치시킨다.
   setConfigAppId(appId)
   replaceInFile(join(appDir, 'android/app/build.gradle'), [
     [/namespace = "[^"]+"/u, `namespace = "${appId}"`],
@@ -75,6 +76,7 @@ function setAndroidAppId(appId) {
 
 function setIosAppId(appId) {
   validateAppId(appId)
+  // iOS만 선택한 경우 Android 식별자는 유지하고 Capacitor와 Xcode 설정만 갱신한다.
   setConfigAppId(appId)
   replaceInFile(join(appDir, 'ios/App/App.xcodeproj/project.pbxproj'), [
     [/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/gu, `PRODUCT_BUNDLE_IDENTIFIER = ${appId};`],
@@ -94,6 +96,7 @@ function setAppId(appId) {
 function updateCodemagicId(key, appId) {
   const codemagicPath = join(appDir, '..', '..', 'codemagic.yaml')
   if (!existsSync(codemagicPath)) {
+    // 이 도구를 Codemagic 템플릿이 없는 프로젝트에서도 사용할 수 있게 선택 파일로 취급한다.
     return
   }
 

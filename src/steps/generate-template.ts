@@ -54,9 +54,11 @@ function templateAnswers(answers: Answers, runtime: TemplateSetupRuntime) {
   }
 
   if (runtime.kind === 'local-package') {
+    // 개발 생성물은 함께 복사한 tarball의 로컬 bin을 사용하므로 npm 배포 여부와 무관하게 실행된다.
     mergedAnswers.setupCommand = 'create-vibe-start setup --dir .'
     mergedAnswers.localSetupPackage = true
   } else {
+    // 정식 생성물은 나중의 CLI 변경에 영향을 받지 않도록 생성 당시 버전을 고정한다.
     const cliVersion =
       typeof mergedAnswers.cliVersion === 'string' && mergedAnswers.cliVersion.trim()
         ? mergedAnswers.cliVersion.trim()
@@ -129,6 +131,7 @@ export async function generateTemplate(
   )
 
   if (setupRuntime.kind === 'local-package') {
+    // package.json의 file 의존성이 항상 같은 상대 경로를 가리키도록 tarball 이름을 고정한다.
     const packageDir = join(projectDir, '.vibe-start')
     await mkdir(packageDir, {recursive: true})
     try {

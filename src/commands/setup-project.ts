@@ -24,6 +24,7 @@ export async function runSetupProject(options: unknown) {
     const parsed = parseOrThrow(setupProjectOptionsSchema, options)
     const project = await readProjectDetails(parsed)
     if (parsed.check) {
+      // CI에서는 계정 로그인이나 대화형 입력 없이 로컬 setup runtime의 로딩만 확인한다.
       outro(chalk.green(`프로젝트 setup runtime 확인 완료: ${project.name}`))
       return
     }
@@ -33,6 +34,7 @@ export async function runSetupProject(options: unknown) {
       return
     }
 
+    // 전체 설정은 Vercel과 Codemagic이 앞 단계의 저장소와 App ID를 재사용할 수 있도록 순서대로 실행한다.
     if (action === 'all' || action === 'github') {
       await setupGitHubConnection(project)
     }
@@ -75,6 +77,7 @@ async function readProjectDetails(options: SetupProjectOptions): Promise<Project
   const dir = resolve(options.dir)
   let packageJson: unknown
   try {
+    // 루트와 main-app의 package.json을 함께 확인해 임의의 폴더에서 배포 명령이 실행되지 않게 한다.
     packageJson = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'))
     await readFile(join(dir, 'apps/main-app/package.json'), 'utf8')
   } catch (error) {
@@ -109,6 +112,7 @@ async function setupVercelDeployment(project: ProjectDetails) {
     throw new Error(setupResult.message)
   }
 
+  // Vercel Git 연결에 owner/name이 필요하므로 저장소가 없으면 GitHub 설정부터 이어서 진행한다.
   const repository = (await readGitHubRepository(project.dir)) ?? (await setupGitHubConnection(project))
   const deploymentUrl = await deployVercelProject(project.dir, project.name, {githubRepository: repository})
   log.success(`Vercel 배포 완료: ${deploymentUrl}`)

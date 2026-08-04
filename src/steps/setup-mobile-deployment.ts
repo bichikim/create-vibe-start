@@ -15,7 +15,7 @@ export async function setupMobileDeployment(projectDir: string) {
   let config = await readProjectSetupConfig(projectDir)
 
   for (const platform of platforms) {
-    // Each selected platform owns an independent interactive onboarding flow.
+    // 먼저 저장한 플랫폼 ID를 다음 설정과 Codemagic 연결에서 재사용하므로 순서대로 실행한다.
     // eslint-disable-next-line no-await-in-loop
     config = await setupNativePlatform(projectDir, platform, config)
   }
@@ -96,6 +96,7 @@ async function setupNativePlatform(
   }
 
   const normalizedAppId = appId.trim()
+  // 네이티브 파일 갱신이 성공한 뒤에만 설정 파일에 기록해 두 상태가 어긋나지 않게 한다.
   await runCommand(
     'pnpm',
     ['run', 'app-id', platform, normalizedAppId],
@@ -182,6 +183,7 @@ async function configureCodemagic(
 async function readCodemagicToken() {
   const environmentToken = process.env.CODEMAGIC_API_TOKEN?.trim()
   if (environmentToken) {
+    // CI와 반복 실행에서는 환경변수를 우선 사용하되 파일에는 기록하지 않는다.
     return environmentToken
   }
 
@@ -207,6 +209,7 @@ async function resolveCodemagicApplication(projectDir: string, token: string, co
   const repositoryUrl = await readRemoteUrl(projectDir)
   if (repositoryUrl) {
     try {
+      // Git remote가 있으면 Codemagic 앱 등록을 먼저 시도하고, 실패할 때만 수동 ID 입력으로 전환한다.
       const application = await registerCodemagicApplication(repositoryUrl, token)
       log.success(`Codemagic 저장소 등록 완료: ${application.id}`)
       return application.id
@@ -257,7 +260,7 @@ async function selectAndStartBuild(
 
   for (const platform of selectedPlatforms(selection)) {
     const workflowId = platform === 'ios' ? 'ios-release' : 'android-release'
-    // Each selected store receives its own Codemagic workflow build.
+    // Codemagic API는 workflow별로 빌드를 시작하므로 선택한 플랫폼을 각각 요청한다.
     // eslint-disable-next-line no-await-in-loop
     const buildId = await startCodemagicBuild({applicationId, branch, token, workflowId})
     log.success(
