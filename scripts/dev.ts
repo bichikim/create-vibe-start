@@ -1,11 +1,8 @@
-import {spawnSync} from 'node:child_process'
 import {mkdtemp, readdir, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
+import {execaSync} from 'execa'
 import {developmentCliArguments} from './development-workflow'
-
-// Windows에서는 pnpm 실행 파일이 .cmd로 설치되므로 플랫폼에 맞는 이름을 사용한다.
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
 interface RunOptions {
   readonly env?: NodeJS.ProcessEnv
@@ -13,13 +10,12 @@ interface RunOptions {
 }
 
 function run(args: ReadonlyArray<string>, options: RunOptions = {}) {
-  // build, pack, CLI가 순서대로 끝나야 같은 산출물을 사용하므로 각 명령이 끝날 때까지 기다린다.
-  const result = spawnSync(pnpm, Array.from(args), {stdio: options.stdio ?? 'inherit', env: options.env})
-  if (result.error) {
-    throw result.error
-  }
-  if (result.status !== 0) {
-    throw new Error(`pnpm ${args.join(' ')} 실행에 실패했습니다.`, {cause: result})
+  // execa는 Windows의 PATHEXT와 .cmd shim을 처리하므로 플랫폼별 실행 파일 이름이나 shell 분기가 필요 없다.
+  // build, pack, CLI가 순서대로 같은 산출물을 사용하도록 동기 API로 각 명령의 종료를 기다린다.
+  try {
+    execaSync('pnpm', args, {stdio: options.stdio ?? 'inherit', env: options.env})
+  } catch (error) {
+    throw new Error(`pnpm ${args.join(' ')} 실행에 실패했습니다.`, {cause: error})
   }
 }
 
