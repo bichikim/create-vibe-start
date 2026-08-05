@@ -5,8 +5,12 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       groups:
+        # 웹 자산 빌드에 필요한 VITE_API_URL 등 비밀이 아닌 모바일 환경변수 그룹이다.
+        - mobile
+        # Play Console service account JSON은 Codemagic의 secret group에서만 주입한다.
         - google_play
       android_signing:
+        # keystore 파일과 비밀번호는 저장소가 아니라 Codemagic signing configuration에서 가져온다.
         - android_keystore
       vars:
         PACKAGE_NAME: "{{nativeAppId}}"
@@ -62,7 +66,11 @@ workflows:
     integrations:
       app_store_connect: app_store_connect
     environment:
+      groups:
+        # iOS 웹 자산도 Android와 같은 모바일 API 환경변수를 사용한다.
+        - mobile
       ios_signing:
+        # 인증서와 provisioning profile은 bundle identifier를 기준으로 Codemagic이 선택한다.
         distribution_type: app_store
         bundle_identifier: "{{nativeAppId}}"
       vars:

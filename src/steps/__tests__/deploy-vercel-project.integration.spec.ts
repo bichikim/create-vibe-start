@@ -937,7 +937,7 @@ describe('deployVercelProject integration', () => {
           '# comment',
           'IGNORED=value',
           'TURSO_DATABASE_URL="libsql://quoted.turso.io"',
-          "TURSO_AUTH_TOKEN='quoted-token'",
+          "TURSO_AUTH_TOKEN='quoted=token' # ignored comment",
           'BROKEN_LINE',
         ].join('\n')
       }
@@ -955,7 +955,7 @@ describe('deployVercelProject integration', () => {
       stdio: 'inherit',
       env: expect.objectContaining({
         TURSO_DATABASE_URL: 'libsql://quoted.turso.io',
-        TURSO_AUTH_TOKEN: 'quoted-token',
+        TURSO_AUTH_TOKEN: 'quoted=token',
       }),
     })
   })

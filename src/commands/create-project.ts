@@ -21,6 +21,7 @@ export interface CreateProjectOptions {
   skipVercel?: boolean
   skipCodex?: boolean
   projectDir?: string
+  localSetupPackage?: string
 }
 
 interface CreatedProject {
@@ -35,9 +36,7 @@ function exitWithOutro(message: string, exitCode: number) {
   process.exit(exitCode)
 }
 
-function exitOnFailure<ResultValue>(
-  result: Result<ResultValue>,
-): result is Extract<Result<ResultValue>, {ok: false}> {
+function exitOnFailure<ResultValue>(result: Result<ResultValue>): result is Extract<Result<ResultValue>, {ok: false}> {
   if (result.ok) {
     return false
   }
@@ -59,6 +58,22 @@ async function selectCreatedProject(options: CreateProjectOptions): Promise<Crea
   return {projectDir, projectName}
 }
 
+function generateSelectedTemplate(options: CreateProjectOptions, project: CreatedProject) {
+  const answers = {projectName: project.projectName}
+  if (!options.localSetupPackage) {
+    // 일반 사용자에게는 생성 당시의 정식 npm 버전을 참조하는 프로젝트를 만든다.
+    return generateTemplate(project.projectDir, answers)
+  }
+
+  // 이 옵션은 루트 개발 스크립트가 준비한 tarball을 검증할 때만 사용한다.
+  return generateTemplate(project.projectDir, answers, undefined, {
+    setupRuntime: {
+      kind: 'local-package',
+      packagePath: options.localSetupPackage,
+    },
+  })
+}
+
 async function runSelectedSetupSteps(options: CreateProjectOptions): Promise<SetupResult[]> {
   const steps: SetupStep[] = [
     ...(options.skipGithub ? [] : [setupGitHub]),
@@ -74,11 +89,7 @@ async function runSelectedSetupSteps(options: CreateProjectOptions): Promise<Set
   return results
 }
 
-async function selectGitHubRepository(
-  options: CreateProjectOptions,
-  results: SetupResult[],
-  project: CreatedProject,
-) {
+async function selectGitHubRepository(options: CreateProjectOptions, results: SetupResult[], project: CreatedProject) {
   const githubResult = results.find((result) => result.name === 'GitHub')
   if (options.skipGithub || githubResult?.status !== 'ready') {
     return false
@@ -139,7 +150,7 @@ export async function runCreateProject(options: CreateProjectOptions) {
 
     const templateResult = await runWorkflowStep(
       'generate-template',
-      () => generateTemplate(project.projectDir, {projectName: project.projectName}),
+      () => generateSelectedTemplate(options, project),
       cliWorkflowProgress,
     )
     if (exitOnFailure(templateResult)) {

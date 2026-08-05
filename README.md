@@ -117,6 +117,19 @@ Show reset command options:
 create-vibe-start reset --help
 ```
 
+### 생성 후 배포 설정
+
+생성된 프로젝트 루트에서 배포 설정 마법사를 실행합니다.
+
+```bash
+cd my-app
+pnpm run setup
+```
+
+마법사에서 전체 설정을 한 번에 진행하거나 GitHub, Vercel, 모바일 앱, Codemagic 빌드, 현재 설정 점검을 따로 선택할 수 있습니다. 중간에 멈춰도 같은 명령을 다시 실행해 이어갈 수 있습니다.
+
+필요한 계정, 입력할 App ID, 비밀값 저장 위치와 개발용 CLI 검증 방법은 [프로젝트 setup 마법사 사용 설명서](docs/project-setup.md)를 참고하세요. 생성된 프로젝트에도 사용자용 상세 설명서가 `docs/deployment-setup.md`로 포함됩니다.
+
 Repair Vercel setup for an existing generated project:
 
 ```bash
@@ -153,20 +166,25 @@ After the tool setup checks, the CLI asks for a project name and directory, then
 pnpm install
 pnpm dev
 pnpm build
+pnpm verify:local-setup
 pnpm desktop:dev
 pnpm desktop:build
 ```
 
 `pnpm build` continues to produce `dist/cli.js` and also creates the self-contained desktop worker. `pnpm desktop:build` synchronizes the Tauri version with `package.json` before building the native installer.
 
+`pnpm dev` builds and packs the unpublished CLI before starting the interactive project generator. The generated development project automatically embeds that tarball under `.vibe-start/` and uses it for `pnpm run setup`; no manual `--local-setup-package` option is needed. Extra CLI options can still be passed after `pnpm dev --`.
+
+`pnpm verify:local-setup` exercises the same development packaging path non-interactively: build, pack, project generation with the exact prepared tarball, dependency installation, and `pnpm run setup --check`. Normal generated projects keep using the exact npm version from this package and do not include the local tarball.
+
 Resource paths are resolved from the running module or app bundle, never from the current working directory:
 
-| Runtime | Templates | Desktop worker/runtime |
-|---|---|---|
-| CLI development | repository `templates/` | — |
-| Built CLI | `dist/templates/` beside `dist/cli.js` | — |
-| Desktop development | repository `dist/templates/` | repository `dist/desktop-worker/` and `src-tauri/runtime/` |
-| Installed desktop app | app resource `templates/` | app resource `desktop-worker/` and `runtime/` |
+| Runtime               | Templates                              | Desktop worker/runtime                                     |
+| --------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| CLI development       | repository `templates/`                | —                                                          |
+| Built CLI             | `dist/templates/` beside `dist/cli.js` | —                                                          |
+| Desktop development   | repository `dist/templates/`           | repository `dist/desktop-worker/` and `src-tauri/runtime/` |
+| Installed desktop app | app resource `templates/`              | app resource `desktop-worker/` and `runtime/`              |
 
 `pnpm desktop:dev` runs `pnpm build` first so the development worker and copied templates always exist. Desktop path selection and bundle mappings are covered by both debug- and release-profile Rust tests.
 
