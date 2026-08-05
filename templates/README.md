@@ -1,16 +1,25 @@
 # {{projectName}}
 
-## Deployment setup wizard
+## 배포 설정 마법사
 
-Run the project setup wizard at any time after project creation:
+프로젝트를 만든 뒤 루트에서 다음 명령을 실행하세요.
 
 ```bash
 pnpm run setup
 ```
 
-Use it to connect a new or existing GitHub repository, configure and deploy Vercel, prepare new or existing iOS and Android store apps, connect Codemagic, inspect setup status, and optionally start the `ios-release` or `android-release` workflow. Account enrollment, store app creation, code-signing identities, and store credentials still require confirmation in the Apple, Google Play, or Codemagic web consoles. The wizard prints the relevant links and can be safely run again.
+마법사에서 전체 설정 또는 필요한 항목만 선택할 수 있습니다.
 
-Set `CODEMAGIC_API_TOKEN` before running the wizard to avoid entering it interactively. The token and store secrets are never written to this repository. The non-secret native IDs and Codemagic Application ID are saved in `vibe-start.config.json`.
+| 메뉴                | 하는 일                                                          |
+| ------------------- | ---------------------------------------------------------------- |
+| 전체 설정           | GitHub → Vercel → 모바일 배포 준비를 순서대로 진행               |
+| GitHub 연결         | 새 저장소를 만들거나 기존 저장소를 연결하고 선택적으로 push      |
+| Vercel 연결 및 배포 | Vercel 프로젝트, Turso, 운영 비밀값을 설정한 뒤 배포             |
+| 모바일 배포 준비    | iOS Bundle ID와 Android Package Name을 적용하고 Codemagic 연결   |
+| Codemagic 빌드 실행 | 저장된 모바일 설정으로 `ios-release` 또는 `android-release` 실행 |
+| 현재 설정 점검      | GitHub, Vercel, 모바일 ID, Codemagic 연결 상태 확인              |
+
+Apple과 Google의 개발자 계정 및 앱 등록, Codemagic 서명·스토어 인증 정보는 각 웹 콘솔에서 준비해야 합니다. 필요한 계정, 입력값, 비밀값 처리, 재실행 방법은 [배포 설정 사용 설명서](docs/deployment-setup.md)를 참고하세요.
 
 Single full-stack starter with Nitro, Vue, oRPC, Zod, Drizzle, Better Auth, and SQLite-compatible storage.
 

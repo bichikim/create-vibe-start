@@ -117,14 +117,18 @@ Show reset command options:
 create-vibe-start reset --help
 ```
 
-Run the post-creation deployment wizard from a generated project:
+### 생성 후 배포 설정
+
+생성된 프로젝트 루트에서 배포 설정 마법사를 실행합니다.
 
 ```bash
 cd my-app
 pnpm run setup
 ```
 
-The wizard can connect a new or existing GitHub repository, configure and deploy Vercel after project creation, prepare iOS and Android store identifiers, connect Codemagic, and optionally start the mobile release workflows.
+마법사에서 전체 설정을 한 번에 진행하거나 GitHub, Vercel, 모바일 앱, Codemagic 빌드, 현재 설정 점검을 따로 선택할 수 있습니다. 중간에 멈춰도 같은 명령을 다시 실행해 이어갈 수 있습니다.
+
+필요한 계정, 입력할 App ID, 비밀값 저장 위치와 개발용 CLI 검증 방법은 [프로젝트 setup 마법사 사용 설명서](docs/project-setup.md)를 참고하세요. 생성된 프로젝트에도 사용자용 상세 설명서가 `docs/deployment-setup.md`로 포함됩니다.
 
 Repair Vercel setup for an existing generated project:
 
