@@ -109,6 +109,7 @@ Run standard scripts from the root, or scope app commands with `pnpm --filter @<
 
 ### Deployment
 
+- Run `pnpm run setup` from the generated project root to connect GitHub/Vercel later or prepare Codemagic mobile deployment.
 - `apps/main-app` → Vercel.
 - Run Vercel CLI commands from the generated project root.
 - Set the Vercel Project Root Directory to `apps/main-app`; the app-level `vercel.json` lives at `apps/main-app/vercel.json`.

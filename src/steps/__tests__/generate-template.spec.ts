@@ -5,6 +5,8 @@ import {tmpdir} from 'node:os'
 import {promisify} from 'node:util'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
+import packageJson from '../../../package.json'
+
 const logStepMock = vi.fn()
 const logMessageMock = vi.fn()
 const execFileAsync = promisify(execFile)
@@ -55,6 +57,12 @@ describe('generateTemplate', () => {
     await generateTemplate(projectDir)
 
     await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toContain('Nitro, Vue, oRPC, Zod, Drizzle')
+    await expect(readFile(join(projectDir, 'README.md'), 'utf8')).resolves.toContain(
+      '[배포 설정 사용 설명서](docs/deployment-setup.md)',
+    )
+    await expect(readFile(join(projectDir, 'docs/deployment-setup.md'), 'utf8')).resolves.toContain(
+      'CODEMAGIC_API_TOKEN',
+    )
     await expect(readFile(join(projectDir, 'package.json'), 'utf8')).resolves.toContain('@vibe-start-app/main-app')
     await expect(readFile(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')).resolves.toContain('catalog:')
     await expect(readFile(join(projectDir, 'apps/main-app/.env.example'), 'utf8')).resolves.toContain(
@@ -151,6 +159,7 @@ describe('generateTemplate', () => {
     const rootPackageJson = JSON.parse(await readFile(join(projectDir, 'package.json'), 'utf8')) as {
       name: string
       scripts: Record<string, string>
+      devDependencies: Record<string, string>
     }
     const appPackageJson = JSON.parse(await readFile(join(projectDir, 'apps/main-app/package.json'), 'utf8')) as {
       name: string
@@ -169,6 +178,9 @@ describe('generateTemplate', () => {
     expect(appPackageJson.dependencies).toMatchObject({['better-auth']: 'catalog:'})
     expect(appPackageJson.dependencies).toMatchObject({stripe: 'catalog:'})
     expect(rootPackageJson.name).toBe('my-app')
+    expect(rootPackageJson.scripts.setup).toBe(`pnpm dlx create-vibe-start@${packageJson.version} setup --dir .`)
+    expect(rootPackageJson.devDependencies['create-vibe-start']).toBeUndefined()
+    await expect(readFile(join(projectDir, '.vibe-start/create-vibe-start.tgz'))).rejects.toThrow()
     expect(rootPackageJson.scripts.dev).toBe('pnpm --filter @my-app/main-app dev')
     expect(rootPackageJson.scripts['mobile:build']).toBe('pnpm --filter @my-app/main-app mobile:build')
     expect(rootPackageJson.scripts.ios).toBe('pnpm --filter @my-app/main-app ios')
@@ -241,11 +253,17 @@ describe('generateTemplate', () => {
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
       '"name": "vite-capacitor"',
     )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/package.json'), 'utf8')).resolves.toContain(
+      '"execa": "catalog:"',
+    )
+    await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
+      "await import('execa')",
+    )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
       'lowercase reverse-domain notation',
     )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
-      'vite-capacitor <build <ios|android>|app-id <com.example.app>>',
+      'vite-capacitor <build <ios|android>|app-id [ios|android] <com.example.app>>',
     )
     await expect(readFile(join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'utf8')).resolves.toContain(
       "'--mode', 'mobile'",
@@ -291,6 +309,8 @@ describe('generateTemplate', () => {
     expect(codemagicYaml).toContain('CURRENT_PROJECT_VERSION')
     expect(codemagicYaml).toContain('submit_to_testflight: true')
     expect(codemagicYaml).toContain('PACKAGE_NAME: "com.vibestart.myapp"')
+    expect(codemagicYaml).toContain('bundle_identifier: "com.vibestart.myapp"')
+    expect(codemagicYaml.match(/- mobile/gu)).toHaveLength(2)
     await expect(
       readFile(join(projectDir, 'apps/main-app/android/app/src/main/res/layout/activity_main.xml'), 'utf8'),
     ).resolves.toContain('android:fitsSystemWindows="true"')
@@ -347,6 +367,30 @@ describe('generateTemplate', () => {
     ).rejects.toMatchObject({
       stderr: expect.stringContaining('lowercase reverse-domain notation'),
     })
+
+    await execFileAsync(
+      process.execPath,
+      [join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'app-id', 'ios', 'com.example.ios'],
+      {cwd: join(projectDir, 'apps/main-app')},
+    )
+    await execFileAsync(
+      process.execPath,
+      [join(projectDir, 'packages/vite-capacitor/scripts/cli.mjs'), 'app-id', 'android', 'com.example.android'],
+      {cwd: join(projectDir, 'apps/main-app')},
+    )
+
+    await expect(
+      readFile(join(projectDir, 'apps/main-app/ios/App/App.xcodeproj/project.pbxproj'), 'utf8'),
+    ).resolves.toContain('PRODUCT_BUNDLE_IDENTIFIER = com.example.ios;')
+    await expect(readFile(join(projectDir, 'apps/main-app/android/app/build.gradle'), 'utf8')).resolves.toContain(
+      'applicationId "com.example.android"',
+    )
+    await expect(readFile(join(projectDir, 'codemagic.yaml'), 'utf8')).resolves.toContain(
+      'bundle_identifier: "com.example.ios"',
+    )
+    await expect(readFile(join(projectDir, 'codemagic.yaml'), 'utf8')).resolves.toContain(
+      'PACKAGE_NAME: "com.example.android"',
+    )
   })
 
   it('keeps uppercase project name characters in the generated native app ID after lowercasing', async () => {
@@ -421,6 +465,60 @@ describe('generateTemplate', () => {
       templateDir,
     )
     await expect(readFile(join(customOverrideProjectDir, 'native.txt'), 'utf8')).resolves.toBe('com.example.app\n')
+  })
+
+  it('uses explicit CLI versions and the bundled package version instead of latest', async () => {
+    const templateDir = join(testDir, 'template')
+    await mkdir(templateDir, {recursive: true})
+    await writeFile(
+      join(templateDir, 'template-manifest.json'),
+      `${JSON.stringify({files: [{from: 'version.txt', template: true}]})}\n`,
+    )
+    await writeFile(join(templateDir, 'version.txt'), '{{cliVersion}}\n')
+    const {generateTemplate} = await import('../generate-template')
+
+    const explicitDir = join(testDir, 'explicit')
+    await generateTemplate(explicitDir, {cliVersion: '9.9.9'}, templateDir)
+    await expect(readFile(join(explicitDir, 'version.txt'), 'utf8')).resolves.toBe('9.9.9\n')
+
+    const assertBundledVersion = async (cliVersion: unknown, suffix: string) => {
+      const projectDir = join(testDir, `bundled-${suffix}`)
+      await generateTemplate(projectDir, {cliVersion}, templateDir)
+      await expect(readFile(join(projectDir, 'version.txt'), 'utf8')).resolves.toBe(`${packageJson.version}\n`)
+    }
+
+    await assertBundledVersion(' ', 'blank')
+    await assertBundledVersion(1, 'type')
+  })
+
+  it('copies a local CLI package only for the local-package runtime', async () => {
+    const projectDir = join(testDir, 'project')
+    const packagePath = join(testDir, 'create-vibe-start.tgz')
+    await writeFile(packagePath, 'local package')
+    const {generateTemplate} = await import('../generate-template')
+
+    await generateTemplate(projectDir, {projectName: 'my-app'}, undefined, {
+      setupRuntime: {kind: 'local-package', packagePath},
+    })
+
+    const rootPackageJson = JSON.parse(await readFile(join(projectDir, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>
+      devDependencies: Record<string, string>
+    }
+    expect(rootPackageJson.scripts.setup).toBe('create-vibe-start setup --dir .')
+    expect(rootPackageJson.devDependencies['create-vibe-start']).toBe('file:.vibe-start/create-vibe-start.tgz')
+    await expect(readFile(join(projectDir, '.vibe-start/create-vibe-start.tgz'), 'utf8')).resolves.toBe('local package')
+  })
+
+  it('reports an explicit error when the local CLI package is missing', async () => {
+    const packagePath = join(testDir, 'missing-create-vibe-start.tgz')
+    const {generateTemplate} = await import('../generate-template')
+
+    await expect(
+      generateTemplate(join(testDir, 'project'), {}, undefined, {
+        setupRuntime: {kind: 'local-package', packagePath},
+      }),
+    ).rejects.toThrow(`로컬 setup package tarball을 복사할 수 없습니다: ${packagePath}`)
   })
 
   it('treats a missing template source as a file action and reports the failure', async () => {

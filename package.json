@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts --project-dir ./.test-project",
+    "dev": "tsx scripts/dev.ts",
     "build": "vite build && ncc build src/desktop-worker.ts -o dist/desktop-worker --transpile-only",
     "desktop:web:dev": "vite --config vite.desktop.config.ts",
     "desktop:web:build": "vite build --config vite.desktop.config.ts",
@@ -33,6 +33,7 @@
     "coverage": "vitest run --coverage --exclude 'test/e2e/**'",
     "test": "vitest run",
     "test:e2e": "vitest run test/e2e",
+    "verify:local-setup": "tsx scripts/dev.ts --verify",
     "test:watch": "vitest"
   },
   "dependencies": {

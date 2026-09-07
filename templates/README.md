@@ -1,5 +1,26 @@
 # {{projectName}}
 
+## 배포 설정 마법사
+
+프로젝트를 만든 뒤 루트에서 다음 명령을 실행하세요.
+
+```bash
+pnpm run setup
+```
+
+마법사에서 전체 설정 또는 필요한 항목만 선택할 수 있습니다.
+
+| 메뉴                | 하는 일                                                          |
+| ------------------- | ---------------------------------------------------------------- |
+| 전체 설정           | GitHub → Vercel → 모바일 배포 준비를 순서대로 진행               |
+| GitHub 연결         | 새 저장소를 만들거나 기존 저장소를 연결하고 선택적으로 push      |
+| Vercel 연결 및 배포 | Vercel 프로젝트, Turso, 운영 비밀값을 설정한 뒤 배포             |
+| 모바일 배포 준비    | iOS Bundle ID와 Android Package Name을 적용하고 Codemagic 연결   |
+| Codemagic 빌드 실행 | 저장된 모바일 설정으로 `ios-release` 또는 `android-release` 실행 |
+| 현재 설정 점검      | GitHub, Vercel, 모바일 ID, Codemagic 연결 상태 확인              |
+
+Apple과 Google의 개발자 계정 및 앱 등록, Codemagic 서명·스토어 인증 정보는 각 웹 콘솔에서 준비해야 합니다. 필요한 계정, 입력값, 비밀값 처리, 재실행 방법은 [배포 설정 사용 설명서](docs/deployment-setup.md)를 참고하세요.
+
 Single full-stack starter with Nitro, Vue, oRPC, Zod, Drizzle, Better Auth, and SQLite-compatible storage.
 
 ## Setup

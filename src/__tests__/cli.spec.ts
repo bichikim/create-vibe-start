@@ -19,6 +19,7 @@ const showCompleteMock = vi.fn()
 const confirmMock = vi.fn()
 const outroMock = vi.fn()
 const runResetEnvironmentMock = vi.fn()
+const runSetupProjectMock = vi.fn()
 
 vi.mock('../steps/welcome.js', () => ({
   showWelcome: showWelcomeMock,
@@ -76,6 +77,10 @@ vi.mock('../commands/reset-environment.js', () => ({
   runResetEnvironment: runResetEnvironmentMock,
 }))
 
+vi.mock('../commands/setup-project.js', () => ({
+  runSetupProject: runSetupProjectMock,
+}))
+
 vi.mock('@clack/prompts', async () => {
   const actual = await vi.importActual<typeof import('@clack/prompts')>('@clack/prompts')
   return {
@@ -102,6 +107,7 @@ describe('CLI program', () => {
     confirmMock.mockReset().mockResolvedValue(true)
     outroMock.mockReset()
     runResetEnvironmentMock.mockReset().mockResolvedValue(true)
+    runSetupProjectMock.mockReset().mockResolvedValue(undefined)
     process.exitCode = undefined
   })
 
@@ -145,6 +151,35 @@ describe('CLI program', () => {
     const {createProgram} = await import('../cli')
 
     expect(createProgram().version()).toBe(packageJson.version)
+  })
+
+  it('runs post-creation setup for a generated project', async () => {
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start', 'setup', '--dir', '/repo'])
+
+    expect(runSetupProjectMock).toHaveBeenCalledWith({dir: '/repo'})
+  })
+
+  it('passes the non-interactive setup check option', async () => {
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start', 'setup', '--dir', '/repo', '--check'])
+
+    expect(runSetupProjectMock).toHaveBeenCalledWith({dir: '/repo', check: true})
+  })
+
+  it('passes a local setup package to project generation', async () => {
+    const {runCli} = await import('../cli')
+
+    await runCli(['node', 'create-vibe-start', '--local-setup-package', '/packages/create-vibe-start.tgz'])
+
+    expect(generateTemplateMock).toHaveBeenCalledWith('/repo', {projectName: 'my-app'}, undefined, {
+      setupRuntime: {
+        kind: 'local-package',
+        packagePath: '/packages/create-vibe-start.tgz',
+      },
+    })
   })
 
   it('honors skip options', async () => {
@@ -349,16 +384,7 @@ describe('CLI program', () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
     const {runCli} = await import('../cli')
 
-    await runCli([
-      'node',
-      'create-vibe-start',
-      'repair',
-      'vercel',
-      '--dir',
-      '/repo',
-      '--project-name',
-      'My-app',
-    ])
+    await runCli(['node', 'create-vibe-start', 'repair', 'vercel', '--dir', '/repo', '--project-name', 'My-app'])
 
     expect(deployVercelProjectMock).not.toHaveBeenCalled()
     expect(outroMock).toHaveBeenCalledWith('대문자는 사용할 수 없습니다. `my-app`처럼 입력해주세요.')

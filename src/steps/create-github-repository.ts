@@ -8,6 +8,8 @@ export type GitCommitIdentity = {
   email: string
 }
 
+export type GitHubVisibility = 'private' | 'public'
+
 /**
  * 생성된 프로젝트를 GitHub CLI 로그인 계정의 새 저장소로 올립니다.
  *
@@ -15,17 +17,24 @@ export type GitCommitIdentity = {
  * @param projectName - 생성할 GitHub 저장소 이름입니다.
  * @returns 생성된 GitHub 저장소의 owner/name 형식 이름입니다.
  */
-export async function createGitHubRepository(projectDir: string, projectName: string, identity?: GitCommitIdentity) {
+export async function createGitHubRepository(
+  projectDir: string,
+  projectName: string,
+  identity?: GitCommitIdentity,
+  visibility: GitHubVisibility = 'private',
+) {
   log.step(chalk.bold('GitHub 저장소 생성'))
 
+  // CLI 최초 생성과 나중 setup 실행이 같은 경로를 사용하도록 Git 초기화부터 push까지 여기서 맡는다.
   await runCommand('git', ['init'], 'git init', projectDir)
   await ensureGitCommitIdentity(projectDir, identity)
   await runCommand('git', ['add', '.'], 'git add .', projectDir)
   await runCommand('git', ['commit', '-m', 'Initial commit'], 'git commit -m "Initial commit"', projectDir)
   await runCommand(
     'gh',
-    ['repo', 'create', projectName, '--private', '--source', '.', '--remote', 'origin', '--push'],
-    `gh repo create ${projectName} --private --source . --remote origin --push`,
+    // 공개 범위는 인자 배열로 전달해 shell 보간 없이 gh가 해석하게 한다.
+    ['repo', 'create', projectName, `--${visibility}`, '--source', '.', '--remote', 'origin', '--push'],
+    `gh repo create ${projectName} --${visibility} --source . --remote origin --push`,
     projectDir,
   )
   const result = await withNetworkRetry('gh repo view', () =>
@@ -36,7 +45,8 @@ export async function createGitHubRepository(projectDir: string, projectName: st
   return result.stdout.trim()
 }
 
-async function ensureGitCommitIdentity(projectDir: string, identity?: GitCommitIdentity) {
+export async function ensureGitCommitIdentity(projectDir: string, identity?: GitCommitIdentity) {
+  // 전역 설정을 덮어쓰지 않고 현재 프로젝트에 유효한 identity가 있는지만 먼저 확인한다.
   const [name, email] = await Promise.all([
     readGitConfig(projectDir, 'user.name'),
     readGitConfig(projectDir, 'user.email'),
@@ -47,6 +57,7 @@ async function ensureGitCommitIdentity(projectDir: string, identity?: GitCommitI
   }
 
   if (identity) {
+    // 데스크톱 앱이 이미 받은 값은 다시 묻지 않고 이 저장소의 로컬 설정에만 기록한다.
     const authorName = identity.name.trim()
     const authorEmail = identity.email.trim()
     if (!authorName || !authorEmail.includes('@')) {
