@@ -32,8 +32,10 @@ describe('selectProjectName', () => {
 
     const validate = textMock.mock.calls[0][0].validate as (value: string) => string | undefined
     expect(validate('')).toBe('프로젝트 이름을 입력해주세요.')
-    expect(validate('My App')).toBe('소문자, 숫자, 하이픈만 사용할 수 있고 첫 글자는 소문자나 숫자여야 합니다.')
-    expect(validate('my-app')).toBeUndefined()
+    expect(validate('My-vibe-app2')).toBe(
+      '대문자는 사용할 수 없습니다. `my-vibe-app2`처럼 입력해주세요.',
+    )
+    expect(validate('my.app_name')).toBeUndefined()
   })
 
   it('returns null when the prompt is cancelled', async () => {

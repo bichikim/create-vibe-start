@@ -5,7 +5,16 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
+    "mobile:build": "vite build --config vite.mobile.config.ts --mode mobile",
     "preview": "node .output/server/index.mjs",
+    "cap:sync": "cap sync",
+    "ios": "node ../../packages/vite-capacitor/scripts/with-xcode.mjs cap run ios --live-reload --host localhost --port 3000",
+    "android": "node ../../packages/vite-capacitor/scripts/with-android.mjs adb reverse tcp:3000 tcp:3000 && node ../../packages/vite-capacitor/scripts/with-android.mjs cap run android --live-reload --host localhost --port 3000",
+    "ios:dev": "vite --host 0.0.0.0 --port 3000 --mode ios",
+    "android:dev": "vite --host 0.0.0.0 --port 3000 --mode android",
+    "app-id": "vite-capacitor app-id",
+    "ios:build": "vite-capacitor build ios",
+    "android:build": "vite-capacitor build android",
     "lint": "oxlint .",
     "format": "oxfmt .",
     "typecheck": "vue-tsc --noEmit",
@@ -13,10 +22,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "auth:generate": "better-auth generate --config ./server/auth.ts --output ./server/db/auth-schema.ts -y"
   },
   "dependencies": {
+    "@capacitor/core": "catalog:",
     "@libsql/client": "catalog:",
+    "better-auth": "catalog:",
     "@pinia/colada": "catalog:",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
@@ -28,6 +40,7 @@
     "nitro": "catalog:",
     "pinia": "catalog:",
     "reka-ui": "catalog:",
+    "stripe": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",
     "vue": "catalog:",
@@ -35,9 +48,14 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@better-auth/cli": "catalog:",
+    "@capacitor/android": "catalog:",
+    "@capacitor/cli": "catalog:",
+    "@capacitor/ios": "catalog:",
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",
     "typescript": "catalog:",
+    "vite-capacitor": "workspace:*",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }

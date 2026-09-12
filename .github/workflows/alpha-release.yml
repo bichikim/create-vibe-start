@@ -196,7 +196,11 @@ jobs:
           git tag "${TAG}"
           git push origin "${TAG}"
 
-      - name: Create GitHub prerelease
+      - name: Prepare install script release assets
+        if: steps.version-gate.outputs.should_release == 'true'
+        run: bash scripts/prepare-release-assets.sh alpha release-assets
+
+      - name: Create draft GitHub prerelease
         if: steps.version-gate.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -215,9 +219,25 @@ jobs:
 
           gh release create "${TAG}" \
             --target "${GITHUB_SHA}" \
+            --draft \
             --prerelease \
             --title "${TAG}" \
-            --generate-notes
+            --generate-notes \
+            release-assets/install.sh \
+            release-assets/install.ps1 \
+            release-assets/SHA256SUMS
+
+      - name: Start signed desktop prerelease build
+        if: steps.version-gate.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.version-gate.outputs.package_version }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/dispatches" \
+            --method POST \
+            --field event_type=desktop-release \
+            --field "client_payload[tag]=v${VERSION}" \
+            --field "client_payload[prerelease]=true"
 
       - name: Skip release
         if: steps.version-gate.outputs.should_release != 'true'

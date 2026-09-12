@@ -95,6 +95,28 @@ describe('setupTool', () => {
     expect(confirmMock).not.toHaveBeenCalled()
   })
 
+  it('returns ready without login when auth commands are not configured', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    const {setupTool} = await import('../setup-tool')
+
+    await expect(
+      setupTool({
+        name: 'Git',
+        command: 'git',
+        versionArgs: ['--version'],
+        install: options.install,
+      }),
+    ).resolves.toEqual({
+      name: 'Git',
+      status: 'ready',
+      message: 'Git CLI 사용 가능',
+    })
+
+    expect(runCommandQuietlyMock).toHaveBeenCalledOnce()
+    expect(runCommandQuietlyMock).toHaveBeenCalledWith('git', ['--version'])
+    expect(confirmMock).not.toHaveBeenCalled()
+  })
+
   it('uses the command label for the successful check message when provided', async () => {
     commandExistsMock.mockResolvedValue(true)
     const {setupTool} = await import('../setup-tool')
@@ -188,6 +210,18 @@ describe('setupTool', () => {
     expect(confirmMock).not.toHaveBeenCalled()
   })
 
+  it('formats non-Error version check failures', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    runCommandQuietlyMock.mockRejectedValueOnce('broken install')
+    const {setupTool} = await import('../setup-tool')
+
+    await expect(setupTool(options)).resolves.toEqual({
+      name: 'Example',
+      status: 'failed',
+      message: 'Example CLI 버전 확인 실패: broken install',
+    })
+  })
+
   it('returns failed when login command fails', async () => {
     commandExistsMock.mockResolvedValue(true)
     runCommandQuietlyMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('not logged in'))
@@ -226,5 +260,33 @@ describe('setupTool', () => {
     await expect(setupTool(options)).resolves.toMatchObject({
       status: 'skipped',
     })
+  })
+
+  it('logs and skips when the install command fails', async () => {
+    commandExistsMock.mockResolvedValue(false)
+    selectMock.mockResolvedValue('install')
+    runCommandMock.mockRejectedValue('install exploded')
+    const {setupTool} = await import('../setup-tool')
+
+    await expect(setupTool(options)).resolves.toMatchObject({
+      status: 'skipped',
+      message: 'Example CLI 설치를 건너뜀',
+    })
+
+    expect(logErrorMock).toHaveBeenCalledWith('Example 설치 실패')
+  })
+
+  it('logs Error install failures and skips installation', async () => {
+    commandExistsMock.mockResolvedValue(false)
+    selectMock.mockResolvedValue('install')
+    runCommandMock.mockRejectedValue(new Error('install exploded'))
+    const {setupTool} = await import('../setup-tool')
+
+    await expect(setupTool(options)).resolves.toMatchObject({
+      status: 'skipped',
+      message: 'Example CLI 설치를 건너뜀',
+    })
+
+    expect(logErrorMock).toHaveBeenCalledWith('install exploded')
   })
 })

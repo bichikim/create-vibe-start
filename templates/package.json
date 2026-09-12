@@ -3,8 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "{{setupCommand}}",
     "dev": "pnpm --filter @{{projectName}}/main-app dev",
     "build": "pnpm --filter @{{projectName}}/main-app build",
+    "mobile:build": "pnpm --filter @{{projectName}}/main-app mobile:build",
+    "ios": "pnpm --filter @{{projectName}}/main-app ios",
+    "android": "pnpm --filter @{{projectName}}/main-app android",
+    "ios:dev": "pnpm --filter @{{projectName}}/main-app ios:dev",
+    "android:dev": "pnpm --filter @{{projectName}}/main-app android:dev",
+    "app-id": "pnpm --filter @{{projectName}}/main-app app-id",
+    "ios:build": "pnpm --filter @{{projectName}}/main-app ios:build",
+    "android:build": "pnpm --filter @{{projectName}}/main-app android:build",
     "lint": "pnpm --filter @{{projectName}}/main-app lint",
     "format": "pnpm --filter @{{projectName}}/main-app format",
     "typecheck": "pnpm --filter @{{projectName}}/main-app typecheck",
@@ -15,6 +24,10 @@
   },
   "packageManager": "pnpm@11.1.2",
   "devDependencies": {
+    {{! 개발 모드에서만 함께 복사한 tarball을 설치하며 정식 생성물에는 이 항목이 남지 않는다. }}
+    {{#if localSetupPackage}}
+    "create-vibe-start": "file:.vibe-start/create-vibe-start.tgz",
+    {{/if}}
     "@types/node": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",

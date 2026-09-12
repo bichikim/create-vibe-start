@@ -1,47 +1,97 @@
-[
-  {
-    "from": "package.json",
-    "template": true
-  },
-  {
-    "from": "pnpm-workspace.yaml"
-  },
-  {
-    "from": "tsconfig.json"
-  },
-  {
-    "from": ".env.example"
-  },
-  {
-    "from": "README.md",
-    "template": true
-  },
-  {
-    "from": "AGENTS.md"
-  },
-  {
-    "from": "gitignore",
-    "to": ".gitignore"
-  },
-  {
-    "from": "../.agents/skills/",
-    "to": ".agents/skills/"
-  },
-  {
-    "from": "apps/",
-    "to": "apps/"
-  },
-  {
-    "from": "apps/main-app/package.json",
-    "to": "apps/main-app/package.json",
-    "template": true
-  },
-  {
-    "from": "../.oxfmtrc.json",
-    "to": ".oxfmtrc.json"
-  },
-  {
-    "from": "../oxlint.config.ts",
-    "to": "oxlint.config.ts"
-  }
-]
+{
+  "$schema": "./template-manifest.schema.json",
+  "files": [
+    {
+      "from": "package.json",
+      "template": true
+    },
+    {
+      "from": "pnpm-workspace.yaml"
+    },
+    {
+      "from": "pnpm-lock.yaml"
+    },
+    {
+      "from": "tsconfig.json"
+    },
+    {
+      "from": "codemagic.yaml",
+      "template": true
+    },
+    {
+      "from": "README.md",
+      "template": true
+    },
+    {
+      "from": "docs/",
+      "to": "docs/"
+    },
+    {
+      "from": "AGENTS.md"
+    },
+    {
+      "from": "gitignore",
+      "to": ".gitignore"
+    },
+    {
+      "from": "../.agents/skills/",
+      "to": ".agents/skills/"
+    },
+    {
+      "from": "apps/",
+      "to": "apps/"
+    },
+    {
+      "from": "packages/",
+      "to": "packages/"
+    },
+    {
+      "from": "apps/main-app/package.json",
+      "to": "apps/main-app/package.json",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/capacitor.config.ts",
+      "to": "apps/main-app/capacitor.config.ts",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/build.gradle",
+      "to": "apps/main-app/android/app/build.gradle",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/src/main/AndroidManifest.xml",
+      "to": "apps/main-app/android/app/src/main/AndroidManifest.xml",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/src/main/java/com/vibestart/app/MainActivity.java",
+      "to": "apps/main-app/android/app/src/main/java/com/vibestart/app/MainActivity.java",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/ios/App/App/Info.plist",
+      "to": "apps/main-app/ios/App/App/Info.plist",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/ios/App/App.xcodeproj/project.pbxproj",
+      "to": "apps/main-app/ios/App/App.xcodeproj/project.pbxproj",
+      "template": true
+    },
+    {
+      "from": "apps/main-app/android/app/src/main/res/values/strings.xml",
+      "to": "apps/main-app/android/app/src/main/res/values/strings.xml",
+      "template": true
+    },
+    {
+      "from": "../.oxfmtrc.json",
+      "to": ".oxfmtrc.json"
+    },
+    {
+      "from": "../oxlint.config.ts",
+      "to": "oxlint.config.ts"
+    }
+  ]
+}

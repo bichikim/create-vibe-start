@@ -1,5 +1,11 @@
 # Agent Instructions
 
+## Project Purpose
+
+This is a CLI that creates new vibe-coding projects by copying curated template content into a target project directory.
+
+The `templates/` directory is the source bundle for generated projects. Files listed in `templates/template-manifest.json` are copied into the target project; entries with `template: true` are rendered through node-plop/Handlebars before being written.
+
 ## Simplicity First
 
 Minimum code that solves the problem. Nothing speculative.
@@ -19,6 +25,7 @@ Minimum code that solves the problem. Nothing speculative.
 ## Branch Sync
 
 - Before starting work, pull the current working branch from its remote to make sure it is up to date.
+- Before creating or starting work in a worktree, update `main` from its remote first so the worktree starts from the latest `main`.
 
 ## Dependency Installation
 
@@ -45,6 +52,7 @@ All standard commands are in `package.json` scripts. Key ones:
 | `pnpm lint` | Lint via oxlint |
 | `pnpm typecheck` | TypeScript type checking |
 | `pnpm test` | Run Vitest suite (47 tests, all external calls mocked) |
+| `pnpm coverage` | Run Vitest coverage; keep statements, branches, functions, and lines at 100% |
 | `pnpm build` | Production build via Vite → `dist/cli.js` |
 | `pnpm dev` | Run CLI in dev mode via tsx (writes to `.test-project/`) |
 | `node dist/cli.js` | Run the built CLI directly |

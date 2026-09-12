@@ -49,6 +49,13 @@ describe('selectProjectDir', () => {
     await expect(selectProjectDir({baseDir: '/workspace', defaultDir: './test'})).resolves.toBe('/workspace/test')
   })
 
+  it('uses process cwd and dot as defaults when no options are provided', async () => {
+    textMock.mockResolvedValue('   ')
+    const {selectProjectDir} = await import('../select-project-dir')
+
+    await expect(selectProjectDir()).resolves.toBe(process.cwd())
+  })
+
   it('continues when the directory exists and the user confirms', async () => {
     existsSyncMock.mockReturnValue(true)
     const {selectProjectDir} = await import('../select-project-dir')

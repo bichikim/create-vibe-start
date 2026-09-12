@@ -1,9 +1,18 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
     "rootDir": ".",
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "vite.config.ts", "vitest.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.js",
+    "test/**/*.ts",
+    "test/**/*.mjs",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
   "exclude": []
 }

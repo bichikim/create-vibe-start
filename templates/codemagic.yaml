@@ -1,0 +1,106 @@
+workflows:
+  android-release:
+    name: Android release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        # 웹 자산 빌드에 필요한 VITE_API_URL 등 비밀이 아닌 모바일 환경변수 그룹이다.
+        - mobile
+        # Play Console service account JSON은 Codemagic의 secret group에서만 주입한다.
+        - google_play
+      android_signing:
+        # keystore 파일과 비밀번호는 저장소가 아니라 Codemagic signing configuration에서 가져온다.
+        - android_keystore
+      vars:
+        PACKAGE_NAME: "{{nativeAppId}}"
+    scripts:
+      - name: Install dependencies
+        script: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build Capacitor web assets
+        script: |
+          pnpm --filter @{{projectName}}/main-app mobile:build
+          pnpm --filter @{{projectName}}/main-app cap:sync
+      - name: Inject Android release signing for CI
+        script: |
+          test -n "$CM_KEYSTORE_PATH"
+          test -n "$CM_KEYSTORE_PASSWORD"
+          test -n "$CM_KEY_ALIAS"
+          test -n "$CM_KEY_PASSWORD"
+          cat >> apps/main-app/android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+                      storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("CM_KEY_ALIAS")
+                      keyPassword System.getenv("CM_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+      - name: Build Android App Bundle
+        script: |
+          cd apps/main-app/android
+          ./gradlew bundleRelease
+    artifacts:
+      - apps/main-app/android/app/build/outputs/**/*.aab
+      - apps/main-app/android/app/build/outputs/**/*.apk
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+
+  ios-release:
+    name: iOS release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: app_store_connect
+    environment:
+      groups:
+        # iOS 웹 자산도 Android와 같은 모바일 API 환경변수를 사용한다.
+        - mobile
+      ios_signing:
+        # 인증서와 provisioning profile은 bundle identifier를 기준으로 Codemagic이 선택한다.
+        distribution_type: app_store
+        bundle_identifier: "{{nativeAppId}}"
+      vars:
+        XCODE_WORKSPACE: apps/main-app/ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+    scripts:
+      - name: Install dependencies
+        script: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build Capacitor web assets
+        script: |
+          pnpm --filter @{{projectName}}/main-app mobile:build
+          pnpm --filter @{{projectName}}/main-app cap:sync
+      - name: Configure iOS code signing
+        script: |
+          xcode-project use-profiles --project "$XCODE_WORKSPACE"
+      - name: Build iOS IPA
+        script: |
+          export NEXT_BUILD_NUMBER="${IOS_BUILD_NUMBER:-$BUILD_NUMBER}"
+          test -n "$NEXT_BUILD_NUMBER"
+          perl -0pi -e 's/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $ENV{NEXT_BUILD_NUMBER};/g' "$XCODE_WORKSPACE/project.pbxproj"
+          xcode-project build-ipa \
+            --project "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

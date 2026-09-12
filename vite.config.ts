@@ -17,7 +17,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: 'templates/**/{*,.*}',
+          src: ['templates/**/{*,.*}', '!templates/**/node_modules/**'],
           dest: 'templates',
           rename: {stripBase: 1},
         },
@@ -40,8 +40,8 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/cli.ts'),
-      fileName: () => 'cli.js',
+      entry: {cli: resolve(__dirname, 'src/cli.ts')},
+      fileName: (_format, entryName) => `${entryName}.js`,
       formats: ['es'],
     },
     minify: false,
@@ -53,6 +53,6 @@ export default defineConfig({
       treeshake: false,
     },
     sourcemap: true,
-    target: 'node20',
+    target: 'node22',
   },
 })

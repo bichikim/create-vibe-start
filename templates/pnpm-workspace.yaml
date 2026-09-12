@@ -1,7 +1,10 @@
 packages:
   - apps/main-app
+  - packages/vite-capacitor
 
 allowBuilds:
+  '@prisma/client@5.22.0': true
+  better-sqlite3@12.10.0: true
   esbuild: true
   vue-demi: true
 
@@ -10,15 +13,22 @@ allowedDeprecatedVersions:
   '@esbuild-kit/esm-loader': 2.6.5
 
 catalog:
+  '@better-auth/cli': ^1.4.21
+  '@capacitor/android': ^8.4.0
+  '@capacitor/cli': ^8.4.0
+  '@capacitor/core': ^8.4.0
+  '@capacitor/ios': ^8.4.0
   '@libsql/client': ^0.17.3
   '@pinia/colada': ^1.3.0
   '@orpc/client': ^1.12.0
   '@orpc/server': ^1.12.0
   '@types/node': ^25.8.0
   '@vitejs/plugin-vue': ^6.0.2
+  better-auth: 1.4.21
   class-variance-authority: ^0.7.1
   drizzle-kit: ^0.31.8
   drizzle-orm: ^0.45.1
+  execa: ^9.6.1
   h3: ^2.0.1-rc.5
   nitro: ^3.0.260429-beta
   oxfmt: ^0.47.0
@@ -27,6 +37,7 @@ catalog:
   oxlint-tsgolint: ^0.22.1
   pinia: ^3.0.4
   reka-ui: ^2.9.7
+  stripe: ^20.0.0
   '@tailwindcss/vite': ^4.3.0
   tailwindcss: ^4.3.0
   typescript: ^5.9.3
