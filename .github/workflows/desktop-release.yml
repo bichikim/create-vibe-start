@@ -62,6 +62,14 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
+      - name: Checkout release workflow tools
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .workflow-tools
+          sparse-checkout: scripts/desktop-release-config.mjs
+          sparse-checkout-cone-mode: false
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -121,10 +129,23 @@ jobs:
         shell: bash
         run: |
           pnpm desktop:prepare
-          echo "TAURI_CONFIG=$(node scripts/desktop-release-config.mjs)" >> "${GITHUB_ENV}"
+          echo "TAURI_CONFIG=$(node .workflow-tools/scripts/desktop-release-config.mjs)" >> "${GITHUB_ENV}"
 
       - name: Build desktop installer
-        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+        shell: bash
+        run: |
+          if [ "${DESKTOP_PLATFORM}" = "macos" ]; then
+            if [ -z "${APPLE_CERTIFICATE}" ] ||
+              [ -z "${APPLE_CERTIFICATE_PASSWORD}" ] ||
+              [ -z "${APPLE_SIGNING_IDENTITY}" ] ||
+              [ -z "${APPLE_API_ISSUER}" ] ||
+              [ -z "${APPLE_API_KEY}" ] ||
+              [ -z "${APPLE_API_KEY_CONTENT}" ]; then
+              unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
+              unset APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_CONTENT APPLE_API_KEY_PATH
+            fi
+          fi
+          pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
 
       - name: Verify macOS signature and notarization
         if: matrix.platform == 'macos' && env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.APPLE_SIGNING_IDENTITY != '' && env.APPLE_API_ISSUER != '' && env.APPLE_API_KEY != '' && env.APPLE_API_KEY_CONTENT != ''
