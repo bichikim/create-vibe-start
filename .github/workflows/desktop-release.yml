@@ -33,7 +33,7 @@ jobs:
             runtime: darwin-universal
             target: universal-apple-darwin
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
           - os: windows-latest
             platform: windows
             runtime: windows-x64
@@ -216,7 +216,7 @@ jobs:
       - name: Create signed updater manifest
         run: node scripts/create-updater-manifest.mjs desktop-artifacts "${TAG}" "${GITHUB_REPOSITORY}" latest.json
 
-      - name: Upload desktop assets to draft release
+      - name: Upload desktop assets to release
         run: gh release upload "${TAG}" desktop-artifacts/* latest.json --clobber
 
       - name: Publish release after every desktop build succeeds
