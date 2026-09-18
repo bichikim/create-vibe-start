@@ -145,7 +145,7 @@ jobs:
               unset APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_CONTENT APPLE_API_KEY_PATH
             fi
           fi
-          pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+          pnpm tauri build --config "${TAURI_CONFIG}" --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
 
       - name: Verify macOS signature and notarization
         if: matrix.platform == 'macos' && env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.APPLE_SIGNING_IDENTITY != '' && env.APPLE_API_ISSUER != '' && env.APPLE_API_KEY != '' && env.APPLE_API_KEY_CONTENT != ''
