@@ -182,7 +182,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force desktop-artifacts | Out-Null
           Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle -Recurse -File |
-            Where-Object { $_.Name -match '\.(exe|nsis\.zip|nsis\.zip\.sig)$' } |
+            Where-Object { $_.Name -match '\.(exe|exe\.sig|nsis\.zip|nsis\.zip\.sig)$' } |
             Copy-Item -Destination desktop-artifacts
 
       - name: Upload desktop artifacts
@@ -201,10 +201,13 @@ jobs:
       PRERELEASE: ${{ github.event.client_payload.prerelease || inputs.prerelease }}
 
     steps:
-      - name: Checkout release tag
+      - name: Checkout release workflow tools
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ github.workflow_sha }}
+          path: .workflow-tools
+          sparse-checkout: scripts/create-updater-manifest.mjs
+          sparse-checkout-cone-mode: false
 
       - name: Download signed artifacts
         uses: actions/download-artifact@v4
@@ -214,7 +217,7 @@ jobs:
           merge-multiple: true
 
       - name: Create signed updater manifest
-        run: node scripts/create-updater-manifest.mjs desktop-artifacts "${TAG}" "${GITHUB_REPOSITORY}" latest.json
+        run: node .workflow-tools/scripts/create-updater-manifest.mjs desktop-artifacts "${TAG}" "${GITHUB_REPOSITORY}" latest.json
 
       - name: Upload desktop assets to release
         run: gh release upload "${TAG}" desktop-artifacts/* latest.json --clobber
