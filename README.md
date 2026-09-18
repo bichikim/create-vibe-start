@@ -237,7 +237,7 @@ Publish a new alpha in two local steps, then let GitHub Actions create the prere
 - The workflow reads `package.json` version and compares it against the latest npm alpha version for `create-vibe-start`.
 - Release runs only when `package.json` is an alpha version and strictly newer than npm's latest alpha.
 - On pass, it creates the `v<package.json version>` tag and a draft GitHub prerelease containing `install.sh`, `install.ps1`, and `SHA256SUMS`.
-- It dispatches the signed desktop build. The draft is published only after notarized macOS Universal DMG, Authenticode-signed Windows NSIS, and signed updater artifacts all pass verification.
+- It dispatches the desktop build. The draft is published only after the macOS Universal DMG, Windows NSIS, and signed updater artifacts are built successfully; platform signing and notarization are used when credentials are configured.
 - The workflow requires the release and signing secrets listed in [`docs/desktop-release.md`](docs/desktop-release.md).
 - npm publish is not executed in `alpha-release.yml`.
 - The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
@@ -281,7 +281,7 @@ Publish a new stable release the same way as alpha: bump `package.json` locally,
 - The workflow reads `package.json` version and compares it against the latest npm stable version for `create-vibe-start` (prereleases such as `-alpha.` are ignored).
 - Release runs only when `package.json` is a stable semver (`x.y.z` with no prerelease suffix) and strictly newer than npm's latest stable.
 - On pass, it creates the `v<package.json version>` tag and a draft GitHub release containing `install.sh`, `install.ps1`, and `SHA256SUMS`.
-- It dispatches the signed desktop build. The draft is published only after notarized macOS Universal DMG, Authenticode-signed Windows NSIS, and signed updater artifacts all pass verification.
+- It dispatches the desktop build. The draft is published only after the macOS Universal DMG, Windows NSIS, and signed updater artifacts are built successfully; platform signing and notarization are used when credentials are configured.
 - The workflow requires the release and signing secrets listed in [`docs/desktop-release.md`](docs/desktop-release.md).
 - npm publish is not executed in `latest-release.yml`.
 - The existing publish workflow `.github/workflows/npm-publish.yml` remains the single publisher and runs from `release: published`.
