@@ -18,15 +18,27 @@ const config = {
   },
 }
 
+const hasMacOSReleaseSigning = [
+  'APPLE_CERTIFICATE',
+  'APPLE_CERTIFICATE_PASSWORD',
+  'APPLE_SIGNING_IDENTITY',
+  'APPLE_API_ISSUER',
+  'APPLE_API_KEY',
+  'APPLE_API_KEY_CONTENT',
+].every((name) => process.env[name])
+
+if (platform === 'macos' && !hasMacOSReleaseSigning) {
+  config.bundle.macOS = {signingIdentity: '-'}
+}
+
 if (platform === 'windows') {
   const certificateThumbprint = process.env.WINDOWS_CERT_THUMBPRINT
-  if (!certificateThumbprint) {
-    throw new Error('WINDOWS_CERT_THUMBPRINT is required.')
-  }
-  config.bundle.windows = {
-    certificateThumbprint,
-    digestAlgorithm: 'sha256',
-    timestampUrl: 'http://timestamp.digicert.com',
+  if (certificateThumbprint) {
+    config.bundle.windows = {
+      certificateThumbprint,
+      digestAlgorithm: 'sha256',
+      timestampUrl: 'http://timestamp.digicert.com',
+    }
   }
 }
 
