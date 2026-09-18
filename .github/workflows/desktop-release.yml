@@ -220,7 +220,7 @@ jobs:
         run: node .workflow-tools/scripts/create-updater-manifest.mjs desktop-artifacts "${TAG}" "${GITHUB_REPOSITORY}" latest.json
 
       - name: Upload desktop assets to release
-        run: gh release upload "${TAG}" desktop-artifacts/* latest.json --clobber
+        run: gh release upload "${TAG}" desktop-artifacts/* latest.json --clobber --repo "${GITHUB_REPOSITORY}"
 
       - name: Publish release after every desktop build succeeds
-        run: gh release edit "${TAG}" --draft=false --prerelease="${PRERELEASE}"
+        run: gh release edit "${TAG}" --draft=false --prerelease="${PRERELEASE}" --repo "${GITHUB_REPOSITORY}"
