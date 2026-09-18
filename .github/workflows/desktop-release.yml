@@ -25,7 +25,7 @@ concurrency:
 jobs:
   desktop-build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: macos-14
@@ -91,10 +91,12 @@ jobs:
             test -n "${APPLE_API_ISSUER}"
             test -n "${APPLE_API_KEY}"
             test -n "${APPLE_API_KEY_CONTENT}"
-          else
-            test -n "${WINDOWS_CERTIFICATE}"
-            test -n "${WINDOWS_CERTIFICATE_PASSWORD}"
           fi
+
+      - name: Warn about unsigned Windows build
+        if: matrix.platform == 'windows' && (env.WINDOWS_CERTIFICATE == '' || env.WINDOWS_CERTIFICATE_PASSWORD == '')
+        shell: bash
+        run: echo "::warning::Windows signing certificate is not configured. The installer will be unsigned and may trigger SmartScreen warnings."
 
       - name: Prepare bundled tool runtime
         shell: bash
@@ -109,7 +111,7 @@ jobs:
           echo "APPLE_API_KEY_PATH=${KEY_PATH}" >> "${GITHUB_ENV}"
 
       - name: Import Windows signing certificate
-        if: matrix.platform == 'windows'
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE != '' && env.WINDOWS_CERTIFICATE_PASSWORD != ''
         shell: pwsh
         run: |
           $certificatePath = Join-Path $env:RUNNER_TEMP 'desktop-signing.pfx'
@@ -118,13 +120,13 @@ jobs:
           $certificate = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password
           "WINDOWS_CERT_THUMBPRINT=$($certificate.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Configure signed updater build
+      - name: Configure desktop updater build
         shell: bash
         run: |
           pnpm desktop:prepare
           echo "TAURI_CONFIG=$(node scripts/desktop-release-config.mjs)" >> "${GITHUB_ENV}"
 
-      - name: Build signed desktop installer
+      - name: Build desktop installer
         run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
 
       - name: Verify macOS signature and notarization
@@ -138,7 +140,7 @@ jobs:
           spctl --assess --type open --context context:primary-signature --verbose=2 "${DMG_PATH}"
 
       - name: Verify Windows Authenticode signature
-        if: matrix.platform == 'windows'
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE != '' && env.WINDOWS_CERTIFICATE_PASSWORD != ''
         shell: pwsh
         run: |
           $installer = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -Filter *.exe | Select-Object -First 1
@@ -165,7 +167,7 @@ jobs:
             Where-Object { $_.Name -match '\.(exe|nsis\.zip|nsis\.zip\.sig)$' } |
             Copy-Item -Destination desktop-artifacts
 
-      - name: Upload signed artifacts
+      - name: Upload desktop artifacts
         uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.platform }}
@@ -199,5 +201,5 @@ jobs:
       - name: Upload desktop assets to draft release
         run: gh release upload "${TAG}" desktop-artifacts/* latest.json --clobber
 
-      - name: Publish release after every signed build succeeds
+      - name: Publish release after every desktop build succeeds
         run: gh release edit "${TAG}" --draft=false --prerelease="${PRERELEASE}"

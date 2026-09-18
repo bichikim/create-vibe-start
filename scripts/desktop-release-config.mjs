@@ -20,13 +20,12 @@ const config = {
 
 if (platform === 'windows') {
   const certificateThumbprint = process.env.WINDOWS_CERT_THUMBPRINT
-  if (!certificateThumbprint) {
-    throw new Error('WINDOWS_CERT_THUMBPRINT is required.')
-  }
-  config.bundle.windows = {
-    certificateThumbprint,
-    digestAlgorithm: 'sha256',
-    timestampUrl: 'http://timestamp.digicert.com',
+  if (certificateThumbprint) {
+    config.bundle.windows = {
+      certificateThumbprint,
+      digestAlgorithm: 'sha256',
+      timestampUrl: 'http://timestamp.digicert.com',
+    }
   }
 }
 
