@@ -1,4 +1,4 @@
-name: Signed Desktop Release
+name: Desktop Release
 
 on:
   repository_dispatch:
@@ -79,19 +79,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate signing secrets
+      - name: Validate updater signing secrets
         shell: bash
         run: |
           test -n "${TAURI_UPDATER_PUBLIC_KEY}"
           test -n "${TAURI_SIGNING_PRIVATE_KEY}"
-          if [ "${DESKTOP_PLATFORM}" = "macos" ]; then
-            test -n "${APPLE_CERTIFICATE}"
-            test -n "${APPLE_CERTIFICATE_PASSWORD}"
-            test -n "${APPLE_SIGNING_IDENTITY}"
-            test -n "${APPLE_API_ISSUER}"
-            test -n "${APPLE_API_KEY}"
-            test -n "${APPLE_API_KEY_CONTENT}"
-          fi
+
+      - name: Warn about unsigned macOS build
+        if: matrix.platform == 'macos' && (env.APPLE_CERTIFICATE == '' || env.APPLE_CERTIFICATE_PASSWORD == '' || env.APPLE_SIGNING_IDENTITY == '' || env.APPLE_API_ISSUER == '' || env.APPLE_API_KEY == '' || env.APPLE_API_KEY_CONTENT == '')
+        shell: bash
+        run: echo "::warning::Apple signing or notarization credentials are incomplete. The macOS app will use ad-hoc signing and will not be notarized."
 
       - name: Warn about unsigned Windows build
         if: matrix.platform == 'windows' && (env.WINDOWS_CERTIFICATE == '' || env.WINDOWS_CERTIFICATE_PASSWORD == '')
@@ -103,7 +100,7 @@ jobs:
         run: bash scripts/prepare-desktop-runtime.sh "${{ matrix.runtime }}"
 
       - name: Prepare macOS notarization key
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.APPLE_SIGNING_IDENTITY != '' && env.APPLE_API_ISSUER != '' && env.APPLE_API_KEY != '' && env.APPLE_API_KEY_CONTENT != ''
         shell: bash
         run: |
           KEY_PATH="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY}.p8"
@@ -130,7 +127,7 @@ jobs:
         run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
 
       - name: Verify macOS signature and notarization
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.APPLE_SIGNING_IDENTITY != '' && env.APPLE_API_ISSUER != '' && env.APPLE_API_KEY != '' && env.APPLE_API_KEY_CONTENT != ''
         shell: bash
         run: |
           APP_PATH="src-tauri/target/universal-apple-darwin/release/bundle/macos/Vibe Start.app"
