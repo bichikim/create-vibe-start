@@ -200,7 +200,7 @@ jobs:
         if: steps.version-gate.outputs.should_release == 'true'
         run: bash scripts/prepare-release-assets.sh alpha release-assets
 
-      - name: Create draft GitHub prerelease
+      - name: Create GitHub prerelease
         if: steps.version-gate.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -219,7 +219,6 @@ jobs:
 
           gh release create "${TAG}" \
             --target "${GITHUB_SHA}" \
-            --draft \
             --prerelease \
             --title "${TAG}" \
             --generate-notes \
