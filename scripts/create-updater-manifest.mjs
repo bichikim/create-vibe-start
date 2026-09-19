@@ -23,10 +23,12 @@ async function filesRecursively(directory) {
 
 const files = await filesRecursively(artifactDir)
 const macOSArtifact = files.find((file) => file.endsWith('.app.tar.gz'))
+const windowsArtifact =
+  files.find((file) => file.endsWith('.nsis.zip')) ?? files.find((file) => file.endsWith('.exe'))
 const updaterArtifacts = {
   'darwin-aarch64': macOSArtifact,
   'darwin-x86_64': macOSArtifact,
-  'windows-x86_64': files.find((file) => file.endsWith('.nsis.zip')),
+  'windows-x86_64': windowsArtifact,
 }
 const platforms = Object.fromEntries(
   await Promise.all(
