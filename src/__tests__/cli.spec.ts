@@ -1,4 +1,5 @@
 import {createRequire} from 'node:module'
+import {pathToFileURL} from 'node:url'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 const require = createRequire(import.meta.url)
@@ -513,5 +514,52 @@ describe('CLI program', () => {
 
     expect(outroMock).toHaveBeenCalledWith('알 수 없는 오류가 발생했습니다.')
     expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+})
+
+describe('isMainModule', () => {
+  it('returns false when argv1 is missing', async () => {
+    const {isMainModule} = await import('../cli')
+
+    expect(isMainModule('file:///tmp/cli.js', '')).toBe(false)
+  })
+
+  it('returns true for a POSIX entry path', async () => {
+    const argv1 = '/tmp/create-vibe-start/dist/cli.js'
+    const {isMainModule} = await import('../cli')
+
+    expect(isMainModule(pathToFileURL(argv1).href, argv1)).toBe(true)
+  })
+
+  it('returns true for a Windows drive path', async () => {
+    const argv1 = 'C:\\Users\\example\\create-vibe-start\\dist\\cli.js'
+    const {isMainModule} = await import('../cli')
+
+    expect(isMainModule(pathToFileURL(argv1).href, argv1)).toBe(true)
+  })
+
+  it('does not treat a Windows drive path as a file URL via new URL', () => {
+    const argv1 = 'C:\\Users\\example\\create-vibe-start\\dist\\cli.js'
+
+    expect(new URL(argv1, 'file:').href === pathToFileURL(argv1).href).toBe(false)
+  })
+
+  it('returns true for a Windows path with Korean characters', async () => {
+    const argv1 = 'C:\\Users\\조상헌\\dist\\cli.js'
+    const {isMainModule} = await import('../cli')
+
+    expect(isMainModule(pathToFileURL(argv1).href, argv1)).toBe(true)
+  })
+
+  it('returns false when argv1 points to a different file', async () => {
+    const {isMainModule} = await import('../cli')
+
+    expect(isMainModule(pathToFileURL('/tmp/other.js').href, '/tmp/cli.js')).toBe(false)
+  })
+
+  it('uses process.argv[1] when argv1 is omitted', async () => {
+    const {isMainModule} = await import('../cli')
+
+    expect(isMainModule('file:///not-the-entry.js')).toBe(false)
   })
 })

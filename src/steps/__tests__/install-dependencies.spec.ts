@@ -1,7 +1,9 @@
+import {join} from 'node:path'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 const commandExistsMock = vi.fn()
 const runCommandMock = vi.fn()
+const runCommandQuietlyMock = vi.fn()
 const mkdirMock = vi.hoisted(() => vi.fn())
 const writeFileMock = vi.hoisted(() => vi.fn())
 
@@ -11,6 +13,7 @@ vi.mock('../../utils/command-exists.js', () => ({
 
 vi.mock('../../utils/run-command.js', () => ({
   runCommand: runCommandMock,
+  runCommandQuietly: runCommandQuietlyMock,
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -22,22 +25,27 @@ describe('installDependencies', () => {
   beforeEach(() => {
     commandExistsMock.mockReset()
     runCommandMock.mockReset().mockResolvedValue(undefined)
+    runCommandQuietlyMock.mockReset()
     mkdirMock.mockReset().mockResolvedValue(undefined)
     writeFileMock.mockReset().mockResolvedValue(undefined)
   })
 
-  it('uses pnpm when available', async () => {
+  it('uses PATH pnpm when it supports catalogs', async () => {
     commandExistsMock.mockResolvedValue(true)
+    runCommandQuietlyMock.mockResolvedValue({stdout: '11.1.2\n'})
     const {installDependencies} = await import('../install-dependencies')
 
     await expect(installDependencies('/repo')).resolves.toBe(true)
 
     expect(commandExistsMock).toHaveBeenCalledWith('pnpm')
+    expect(runCommandQuietlyMock).toHaveBeenCalledWith('pnpm', ['--version'])
     expect(runCommandMock).toHaveBeenNthCalledWith(1, 'pnpm', ['i'], 'pnpm i', '/repo')
-    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/android/app/src/main/assets', {recursive: true})
-    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/dist', {recursive: true})
+    expect(mkdirMock).toHaveBeenCalledWith(join('/repo', 'apps/main-app/android/app/src/main/assets'), {
+      recursive: true,
+    })
+    expect(mkdirMock).toHaveBeenCalledWith(join('/repo', 'apps/main-app/dist'), {recursive: true})
     expect(writeFileMock).toHaveBeenCalledWith(
-      '/repo/apps/main-app/dist/index.html',
+      join('/repo', 'apps/main-app/dist/index.html'),
       '<!doctype html><title>vibe</title>\n',
     )
     expect(runCommandMock).toHaveBeenNthCalledWith(
@@ -45,42 +53,44 @@ describe('installDependencies', () => {
       'pnpm',
       ['exec', 'cap', 'update', 'android'],
       'pnpm exec cap update android',
-      '/repo/apps/main-app',
+      join('/repo', 'apps/main-app'),
     )
   })
 
-  it('uses Corepack to activate pnpm when pnpm is unavailable', async () => {
-    commandExistsMock
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
+  it('uses Corepack pnpm when PATH pnpm is too old for catalogs', async () => {
+    commandExistsMock.mockResolvedValue(true)
+    runCommandQuietlyMock.mockResolvedValue({stdout: '7.29.1'})
+    const {installDependencies} = await import('../install-dependencies')
+
+    await expect(installDependencies('/repo')).resolves.toBe(true)
+
+    expect(runCommandQuietlyMock).toHaveBeenCalledWith('pnpm', ['--version'])
+    expect(runCommandMock).toHaveBeenNthCalledWith(1, 'corepack', ['pnpm@11.1.2', 'i'], 'pnpm i', '/repo')
+    expect(runCommandMock).toHaveBeenNthCalledWith(
+      2,
+      'corepack',
+      ['pnpm@11.1.2', 'exec', 'cap', 'update', 'android'],
+      'pnpm exec cap update android',
+      join('/repo', 'apps/main-app'),
+    )
+  })
+
+  it('uses Corepack pnpm when pnpm is unavailable', async () => {
+    commandExistsMock.mockImplementation(async (command: string) => command === 'corepack')
     const {installDependencies} = await import('../install-dependencies')
 
     await expect(installDependencies('/repo')).resolves.toBe(true)
 
     expect(commandExistsMock).toHaveBeenNthCalledWith(1, 'pnpm')
     expect(commandExistsMock).toHaveBeenNthCalledWith(2, 'corepack')
-    expect(commandExistsMock).toHaveBeenNthCalledWith(3, 'pnpm')
-    expect(runCommandMock).toHaveBeenNthCalledWith(1, 'corepack', ['enable', 'pnpm'], 'corepack enable pnpm')
+    expect(runCommandQuietlyMock).not.toHaveBeenCalled()
+    expect(runCommandMock).toHaveBeenNthCalledWith(1, 'corepack', ['pnpm@11.1.2', 'i'], 'pnpm i', '/repo')
     expect(runCommandMock).toHaveBeenNthCalledWith(
       2,
       'corepack',
-      ['prepare', 'pnpm@11.1.2', '--activate'],
-      'corepack prepare pnpm@11.1.2 --activate',
-    )
-    expect(runCommandMock).toHaveBeenNthCalledWith(3, 'pnpm', ['i'], 'pnpm i', '/repo')
-    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/android/app/src/main/assets', {recursive: true})
-    expect(mkdirMock).toHaveBeenCalledWith('/repo/apps/main-app/dist', {recursive: true})
-    expect(writeFileMock).toHaveBeenCalledWith(
-      '/repo/apps/main-app/dist/index.html',
-      '<!doctype html><title>vibe</title>\n',
-    )
-    expect(runCommandMock).toHaveBeenNthCalledWith(
-      4,
-      'pnpm',
-      ['exec', 'cap', 'update', 'android'],
+      ['pnpm@11.1.2', 'exec', 'cap', 'update', 'android'],
       'pnpm exec cap update android',
-      '/repo/apps/main-app',
+      join('/repo', 'apps/main-app'),
     )
   })
 
@@ -97,23 +107,13 @@ describe('installDependencies', () => {
     expect(runCommandMock).not.toHaveBeenCalled()
   })
 
-  it('fails when Corepack does not make the pnpm command available', async () => {
-    commandExistsMock
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false)
+  it('fails when PATH pnpm is too old and Corepack is unavailable', async () => {
+    commandExistsMock.mockImplementation(async (command: string) => command === 'pnpm')
+    runCommandQuietlyMock.mockResolvedValue({stdout: '7.29.1'})
     const {installDependencies} = await import('../install-dependencies')
 
     await expect(installDependencies('/repo')).rejects.toThrow(
-      'Corepack으로 pnpm을 활성화했지만 pnpm 명령을 찾을 수 없습니다.',
-    )
-
-    expect(runCommandMock).toHaveBeenNthCalledWith(1, 'corepack', ['enable', 'pnpm'], 'corepack enable pnpm')
-    expect(runCommandMock).toHaveBeenNthCalledWith(
-      2,
-      'corepack',
-      ['prepare', 'pnpm@11.1.2', '--activate'],
-      'corepack prepare pnpm@11.1.2 --activate',
+      '이 템플릿은 pnpm이 필요합니다. pnpm을 설치하거나 Corepack을 활성화해주세요.',
     )
   })
 })

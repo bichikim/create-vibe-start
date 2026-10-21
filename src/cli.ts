@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {createRequire} from 'node:module'
+import {pathToFileURL} from 'node:url'
 import {Command} from 'commander'
 import {type CreateProjectOptions, runCreateProject} from './commands/create-project'
 import {runRepairVercel} from './commands/repair-vercel'
@@ -60,7 +61,15 @@ export async function runCli(argv = process.argv) {
   await createProgram().parseAsync(argv)
 }
 
-/* v8 ignore next 3 */
-if (process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href) {
+/** Returns true when this ESM file is the Node process entrypoint. */
+export const isMainModule = (moduleUrl: string, argv1 = process.argv[1]) => {
+  if (!argv1) {
+    return false
+  }
+  return moduleUrl === pathToFileURL(argv1).href
+}
+
+if (isMainModule(import.meta.url)) {
+  /* v8 ignore next */
   await runCli()
 }
